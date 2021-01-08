@@ -41,74 +41,7 @@ N_STACKS = 10
 ORDER_PROB = 0.01
 
 
-# class Warehouse:
-#     """Warehouse objects contain the important parameters for the warehouse.
-    
-#     These parameters include the dimensions of warehouse, number of robots and 
-#     stacks in warehouse, and probability of each item being ordered at the 
-#     start of each time step. These parameters are important for the logic of 
-#     the environment.
-    
-#     Attributes:
-#         n_rows (int): The number of rows in the warehouse grid.
-#         n_cols (int): The number of columns in the warehouse grid.
-#         n_robots (int): The number of warehouse robots.
-#         n_stacks (int): The number of inventory stacks.
-#         order_prob (float): The probability of each stack having an item be 
-#             ordered at any time step.
-#     """
-    
-#     def __init__(self, n_rows, n_cols, n_robots, n_stacks, order_prob):
-#         """
-#         Creates a new Warehouse object given the parameters of the warehouse.
 
-#         Parameters
-#         ----------
-#         n_rows : int
-#             The number of rows in the warehouse grid.
-#         n_cols : int
-#             The number of columns in the warheouse grid.
-#         n_robots : int
-#             The number of warehouse robots.
-#         n_stacks : int
-#             The number of inventory stacks.
-#         order_prob : float
-#             The probability of each stack having an item be ordered at any 
-#             time step.
-
-#         Returns
-#         -------
-#         None.
-
-#         """
-#         self.n_rows = n_rows
-#         self.n_cols = n_cols
-#         self.n_robots = n_robots
-#         self.n_stacks = n_stacks
-#         self.order_prob = order_prob
-#         return
-    
-#     def __repr__(self):
-#         """
-#         Return the string representation of a Warehouse object.
-
-#         Returns
-#         -------
-#         s : str
-#             A string representation of the Warehouse object.
-
-#         """
-#         s = str(self.n_rows) + "x" + str(self.n_cols) + " grid"
-#         s += ", " + str(self.n_robots) + " robots"
-#         s += ", " + str(self.n_stacks) + " inventory stacks"
-#         s += ", " + str(self.order_prob * 100) + "% order probability"
-#         s += ""
-#         return s 
-
-
-
-
-    
 
 class Location:
     """
