@@ -29,16 +29,17 @@ step: move up, move down, move left, move right, pick up an inventory stack,
 or drop an inventory stack. Some actions may not be available in certain 
 states (e.g. if a robot is in the top row of the grid, they may not move up).
 
-
-
-
 """
+
+
+N_ITER = 100
+POLICY_TYPE = 'random'
 
 N_ROWS = 4
 N_COLS = 6
 N_ROBOTS = 5
 N_STACKS = 10
-ORDER_PROB = 0.01
+ORDER_PROB = 0.05
 
 
 
@@ -181,31 +182,11 @@ class State:
 
         """
         ### RAISE EXCEPTION
-        if (N_ROWS == 4 and N_COLS == 6 and N_ROBOTS == 5 and N_STACKS == 10):
-            self.robot_locs = [Location(1, i) for i in range(5)]
-            self.stack_locs = ([Location(1, i) for i in range(5)] 
-                               + [Location(2, i) for i in range(5)])
-        return
-    
-    def order_items(self):
-        """
-        Determines if more items are ordered.
-        
-        At the beginning of each time step, the environment must check if more
-        items are ordered. For each stack, it compares a random number in the 
-        interval (0,1) to the probability that another item on that stack will
-        be ordered. If the random number is less than the order probability, 
-        the number of ordered items on that stack will increase by 1 unless 
-        there is already 10 ordered items on the stack.
-
-        Returns
-        -------
-        None.
-
-        """
-        for i in range(N_STACKS):
-            if random.random() < ORDER_PROB:
-                self.num_ordered[i] = min(self.num_ordered[i]+1, 10)
+        if (N_ROWS == 4 and N_STACKS == 2*N_ROBOTS and N_COLS >= N_ROBOTS
+            and POLICY_TYPE == 'baseline'):
+            self.robot_locs = [Location(1, i) for i in range(N_ROBOTS)]
+            self.stack_locs = ([Location(1, i) for i in range(N_ROBOTS)] 
+                               + [Location(2, i) for i in range(N_ROBOTS)])
         return
     
         
@@ -390,212 +371,55 @@ class Agent:
     """
     The central agent that controls the actions of the robots.
     
-    Attributes
-    ----------
-    state : State
-        The current state of the environment that the agent bases its 
-        decisions off of.
-    time_step : int
-        The number of time steps (number of actions the agent has taken) since
-        the start of the simulation.
-    cost: int
-        The total accumulated cost throughout the simulation.
-    returned: int
-        The number of items ordered by Amazon customers that have been 
-        returned to the workers in the picking stations.
-    
     """
     
-    def __init__(self, s):
+    def __init__(self):
         """
-        Creates an Agent object given a State instance.
+        Creates an Agent object.
         
-        Initially, time_step is 0, the cost is 0, and the number of returned 
-        items is 0 since no actions have been taken.
-
-        Parameters
-        ----------
-        s : State
-            The initial state of the environment.
+        The agent may follow a random policy, baseline policy, learning policy,
+        or optimal policy.
 
         Returns
         -------
         None.
 
         """
-        self.state = s
-        self.time_step = 0
-        self.cost = 0
-        self.returned = 0
         return
     
-    def calculate_state(self, a):
+    def policy(self, current_state):
         """
-        Determines the new state if taking an action in the current state. 
+        Determines the action that the agent should take in the current state.
         
-        For each robot, check if there stack in the same location as the 
-        robot and then make adjustments to the state based on what the action
-        is. Next, check if stacks are located in the picking stations and 
-        adjust the number of ordered items on the stacks accordingly.
-        
-        If the action is to move up, down, left or right, then adjust the 
-        location of the robot. If there is a stack in the same location as the 
-        robot and the robot is lifting the stack, then the stack will move 
-        along with the robot. If not, then only the robot will move.
-        
-        If the action is to lift a stack, the lift state for that robot will 
-        be set to True if there is a stack in the same location as the robot.
-        
-        If the action is to drop a stack, then the lift state for that robot 
-        will be set to False.
-        
-        If a stack remains in a picking station for 1 whole time step, then if 
-        the stack has ordered items, the num_ordered value for that stack will
-        decrease by 1. Note: it does not matter if there is a robot carrying 
-        stack or not, as long as the stack remains in the same location at a
-        picking station, it is assumed that the item can be collected.
+        The policy used depends on the policy_type attribute.
 
         Parameters
         ----------
+        current_state : State
+            The current state of the environment.
+
+        Returns
+        -------
         a : Actions
-            The action that the agent will take.
-
-        Returns
-        -------
-        new_state : State
-            The new state that the environment will enter if the given action
-            is taken.
+            The set of actions to take in the current state.
 
         """
-        new_state = copy.deepcopy(self.state)
-
-        for robot_idx in range(N_ROBOTS):
-            try:
-                stack_num = self.state.stack_locs.index(self.state.robot_locs[robot_idx])
-            except ValueError:
-                stack_num = -1 # there is no stack in the same location
-            lifting = self.state.lift[robot_idx]
-
-            if a.actions[robot_idx] == "U":
-                new_state.robot_locs[robot_idx].row -= 1
-                if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].row -= 1
-            elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx].row += 1
-                if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].row += 1
-            elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx].col -= 1
-                if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].col -= 1
-            elif a.actions[robot_idx] == "R":
-                new_state.robot_locs[robot_idx].col += 1
-                if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].col += 1
-            elif a.actions[robot_idx] == "lift":
-                if stack_num != -1:
-                    new_state.lift[robot_idx] = True
-            elif a.actions[robot_idx] == "drop":
-                new_state.lift[robot_idx] = False
-            else:
-                ## RAISE EXCEPTION
-                print("Error: Invalid action")
-                
-        for stack_idx in range(N_STACKS):
-            if (self.state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
-                and new_state.stack_locs[stack_idx].col == 0):
-                new_state.num_ordered[stack_idx] = max(new_state.num_ordered[stack_idx] - 1, 0)
-        return new_state
-    
-    def possible_state(self, new_state):
-        """
-        Checks if it is possible to transition from the current state to 
-        the given new state.
-        
-        First, it is checked that no robot leaves the warehouse grid in the
-        new state and that no two robots are in the same location in the new
-        state. Next, it is checked that no stack leaves and warehouse grid in 
-        new state and that no two stacks are in the same location in the new 
-        state. Lastly, it is checked that no two robots pass through one 
-        another when transitioning from the current state to the new state 
-        (i.e. 2 robots switch locations in the transition).
-        
-        If all these conditions are met, then the new state is possible. If 
-        not, then the new state is not possible.
-
-        Parameters
-        ----------
-        new_state : State
-            The new state that will be transitioned to.
-
-        Returns
-        -------
-        bool
-            A boolean value indicating if the state transition is possible.
-
-        """
-        robot_locs_taken = []
-        for robot_loc in new_state.robot_locs:
-            if (robot_loc.row in list(range(N_ROWS))
-                and robot_loc.col in list(range(N_COLS))
-                and robot_loc not in robot_locs_taken):
-                robot_locs_taken.append(robot_loc)
-            else: 
-                return False
-                
-        stack_locs_taken = []
-        for stack_loc in new_state.stack_locs:
-            if (stack_loc.row in list(range(N_ROWS))
-                and stack_loc.col in list(range(N_COLS))
-                and stack_loc not in stack_locs_taken):
-                stack_locs_taken.append(stack_loc)
-            else: 
-                return False
-        
-        robot_locs1 = self.state.robot_locs
-        robot_locs2 = new_state.robot_locs
-        for i in range(N_ROBOTS):
-            for j in range(N_ROBOTS):
-                if (robot_locs1[i] == robot_locs2[j] 
-                    and robot_locs2[i] == robot_locs1[j] 
-                    and i != j):
-                    return False
-        return True
-    
-    def random_policy(self):
-        """
-        Randomly determines an action to take given the current state.
-        
-        This policy is only used to test the functionality of the simulation.
-        
-        First, a random set of actions is selected, the new state is 
-        calculated given that random set of actions, and then it is checked if
-        the new state is possible. If the new state is possible, return that 
-        set of actions. If the new state is not possible, the process is 
-        repeated until a set of actions is found that results in a possible 
-        new state.
-
-        Returns
-        -------
-        Actions
-            A set of actions that is possible in the current state.
-
-        """
-        possibleState = False
-        while not possibleState:
-            a = Actions()
-            new_state = self.calculate_state(a)
-            possibleState = self.possible_state(new_state)
+        if POLICY_TYPE == 'baseline':
+            a = self.baseline_policy(current_state)
+        else:
+            a = self.random_policy(current_state)
         return a
     
-    def baseline_policy(self):
+    def baseline_policy(self, current_state):
         """
-        A hardcoded policy to compare to the learned policy.
+        Determines what action to take in the current state if following the
+        baseline_policy.
         
         In order to evaluate the policy learned by the reinforcement learning
-        algorithm, we must compare the performance to another policy. This 
-        policy keeps all the stacks and robots in the 2 middle rows until a 
-        stack needs to be returned to a picking station.
+        algorithm, we must compare the performance to the performance of 
+        another policy. This baseline policy keeps all the stacks and robots 
+        in the 2 middle rows until a stack needs to be returned to a picking 
+        station.
         
         For each column in the grid, there are 2 stacks and 1 robot. The stack
         with the highest number of outstanding ordered items is identified.
@@ -690,26 +514,26 @@ class Agent:
         """
         ## RAISE EXCEPTION
         a = Actions()
-        all_middle_rows = all([loc.row in {1, 2} for loc in self.state.robot_locs])
+        all_middle_rows = all([loc.row in {1, 2} for loc in current_state.robot_locs])
                     
         if all_middle_rows:
-            orders = copy.deepcopy(self.state.num_ordered)
+            orders = copy.deepcopy(current_state.num_ordered)
             max_order = max(orders)
             desired_stack_idx = orders.index(max_order)
-            desired_stack_loc = self.state.stack_locs[desired_stack_idx]
+            desired_stack_loc = current_state.stack_locs[desired_stack_idx]
             while (desired_stack_loc.col == 0 and any(orders)):
                 orders[desired_stack_idx] = 0
                 max_order = max(orders)
                 desired_stack_idx = orders.index(max_order)
-                desired_stack_loc = self.state.stack_locs[desired_stack_idx]
+                desired_stack_loc = current_state.stack_locs[desired_stack_idx]
             if max_order == 0 or desired_stack_loc.col == 0:
                 # case 1
                 a.set_all_actions('drop')
             else:
-                robot_cols = [loc.col for loc in self.state.robot_locs]
+                robot_cols = [loc.col for loc in current_state.robot_locs]
                 desired_robot_idx = robot_cols.index(desired_stack_loc.col)
-                if self.state.robot_locs[desired_robot_idx].row != desired_stack_loc.row:
-                    if self.state.lift[desired_robot_idx]:
+                if current_state.robot_locs[desired_robot_idx].row != desired_stack_loc.row:
+                    if current_state.lift[desired_robot_idx]:
                         # case 2
                         a.set_all_actions('drop')
                     else:
@@ -719,7 +543,7 @@ class Agent:
                         elif desired_stack_loc.row == 2:
                             a.set_all_actions('D')
                 else:
-                    if not self.state.lift[desired_robot_idx]:
+                    if not current_state.lift[desired_robot_idx]:
                         # case 4
                         a.set_all_actions('lift')
                     else:
@@ -730,10 +554,10 @@ class Agent:
                         elif desired_stack_loc.row == 2:
                             a.set_action(desired_robot_idx, 'D')
         else:
-            robot_cols = [loc.col for loc in self.state.robot_locs]
-            in_outer_rows = [loc.row in {0, 3} for loc in self.state.robot_locs]
+            robot_cols = [loc.col for loc in current_state.robot_locs]
+            in_outer_rows = [loc.row in {0, 3} for loc in current_state.robot_locs]
             desired_robot_idx = in_outer_rows.index(True)
-            desired_robot_loc = self.state.robot_locs[desired_robot_idx]
+            desired_robot_loc = current_state.robot_locs[desired_robot_idx]
             if desired_robot_loc.col > 0:
                 # case 6
                 a.set_all_actions('lift')
@@ -745,7 +569,7 @@ class Agent:
                         missing_col = robot_idx
                         break
                 for robot_idx in range(N_ROBOTS):
-                    robot_loc = self.state.robot_locs[robot_idx]
+                    robot_loc = current_state.robot_locs[robot_idx]
                     if robot_loc.col < missing_col:
                         a.set_action(robot_idx, 'R')
                     else:
@@ -755,6 +579,230 @@ class Agent:
                 else:
                     a.set_action(desired_robot_idx, 'U')
         return a
+    
+    def random_policy(self, current_state):
+        """
+        Randomly determines an action to take given the current state.
+        
+        This policy is only used to test the functionality of the simulation.
+        
+        First, a random set of actions is selected, the new state is 
+        calculated given that random set of actions, and then it is checked if
+        the new state is possible. If the new state is possible, return that 
+        set of actions. If the new state is not possible, the process is 
+        repeated until a set of actions is found that results in a possible 
+        new state.
+
+        Returns
+        -------
+        Actions
+            A set of actions that is possible in the current state.
+
+        """
+        possibleState = False
+        while not possibleState:
+            a = Actions()
+            new_state = self.calculate_state(current_state, a)
+            possibleState = self.possible_state(current_state, new_state)
+        return a
+    
+    def calculate_state(self, current_state, a):
+        """
+        Determines the new state if taking an action in the current state. 
+        
+        For each robot, check if there stack in the same location as the 
+        robot and then make adjustments to the state based on what the action
+        is. Next, check if stacks are located in the picking stations and 
+        adjust the number of ordered items on the stacks accordingly.
+        
+        If the action is to move up, down, left or right, then adjust the 
+        location of the robot. If there is a stack in the same location as the 
+        robot and the robot is lifting the stack, then the stack will move 
+        along with the robot. If not, then only the robot will move.
+        
+        If the action is to lift a stack, the lift state for that robot will 
+        be set to True if there is a stack in the same location as the robot.
+        
+        If the action is to drop a stack, then the lift state for that robot 
+        will be set to False.
+        
+        If a stack remains in a picking station for 1 whole time step, then if 
+        the stack has ordered items, the num_ordered value for that stack will
+        decrease by 1. Note: it does not matter if there is a robot carrying 
+        stack or not, as long as the stack remains in the same location at a
+        picking station, it is assumed that the item can be collected.
+
+        Parameters
+        ----------
+        current_state : State
+            The current state of the environment.
+        a : Actions
+            The action that the agent will take.
+
+        Returns
+        -------
+        new_state : State
+            The new state that the environment will enter if the given action
+            is taken.
+
+        """
+        new_state = copy.deepcopy(current_state)
+
+        for robot_idx in range(N_ROBOTS):
+            try:
+                stack_num = current_state.stack_locs.index(current_state.robot_locs[robot_idx])
+            except ValueError:
+                stack_num = -1 # there is no stack in the same location
+            lifting = current_state.lift[robot_idx]
+
+            if a.actions[robot_idx] == "U":
+                new_state.robot_locs[robot_idx].row -= 1
+                if stack_num != -1 and lifting:
+                    new_state.stack_locs[stack_num].row -= 1
+            elif a.actions[robot_idx] == "D":
+                new_state.robot_locs[robot_idx].row += 1
+                if stack_num != -1 and lifting:
+                    new_state.stack_locs[stack_num].row += 1
+            elif a.actions[robot_idx] == "L":
+                new_state.robot_locs[robot_idx].col -= 1
+                if stack_num != -1 and lifting:
+                    new_state.stack_locs[stack_num].col -= 1
+            elif a.actions[robot_idx] == "R":
+                new_state.robot_locs[robot_idx].col += 1
+                if stack_num != -1 and lifting:
+                    new_state.stack_locs[stack_num].col += 1
+            elif a.actions[robot_idx] == "lift":
+                if stack_num != -1:
+                    new_state.lift[robot_idx] = True
+            elif a.actions[robot_idx] == "drop":
+                new_state.lift[robot_idx] = False
+            else:
+                ## RAISE EXCEPTION
+                print("Error: Invalid action")
+                
+        for stack_idx in range(N_STACKS):
+            if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
+                and new_state.stack_locs[stack_idx].col == 0):
+                new_state.num_ordered[stack_idx] = max(new_state.num_ordered[stack_idx] - 1, 0)
+        return new_state
+    
+    def possible_state(self, current_state, new_state):
+        """
+        Checks if it is possible to transition from the current state to 
+        the given new state.
+        
+        First, it is checked that no robot leaves the warehouse grid in the
+        new state and that no two robots are in the same location in the new
+        state. Next, it is checked that no stack leaves and warehouse grid in 
+        new state and that no two stacks are in the same location in the new 
+        state. Lastly, it is checked that no two robots pass through one 
+        another when transitioning from the current state to the new state 
+        (i.e. 2 robots switch locations in the transition).
+        
+        If all these conditions are met, then the new state is possible. If 
+        not, then the new state is not possible.
+
+        Parameters
+        ----------
+        current_state : State
+            The current state of the environment.
+        new_state : State
+            The new state that will be transitioned to from the current state.
+
+        Returns
+        -------
+        bool
+            A boolean value indicating if the state transition is possible.
+
+        """
+        robot_locs_taken = []
+        for robot_loc in new_state.robot_locs:
+            if (robot_loc.row in list(range(N_ROWS))
+                and robot_loc.col in list(range(N_COLS))
+                and robot_loc not in robot_locs_taken):
+                robot_locs_taken.append(robot_loc)
+            else: 
+                return False
+                
+        stack_locs_taken = []
+        for stack_loc in new_state.stack_locs:
+            if (stack_loc.row in list(range(N_ROWS))
+                and stack_loc.col in list(range(N_COLS))
+                and stack_loc not in stack_locs_taken):
+                stack_locs_taken.append(stack_loc)
+            else: 
+                return False
+        
+        robot_locs1 = current_state.robot_locs
+        robot_locs2 = new_state.robot_locs
+        for i in range(N_ROBOTS):
+            for j in range(N_ROBOTS):
+                if (robot_locs1[i] == robot_locs2[j] 
+                    and robot_locs2[i] == robot_locs1[j] 
+                    and i != j):
+                    return False
+        return True
+
+
+
+
+
+    
+class Environment():
+    """
+    The warehouse environment that the agent is interacting with.
+    
+    Attributes
+    ----------
+    state : State
+        The current state of the environment that the agent bases its 
+        decisions off of.
+    agent : Agent
+        The agent that is interacting with the environment.
+    cost : int
+        The total accumulated cost throughout the simulation.
+    total_orders : int
+        The total number of orders throughout the simulation.
+    total_returns : int
+        The total number of items ordered by Amazon customers that have been 
+        returned to the workers in the picking stations.
+    """
+    
+    def __init__(self):
+        self.state = State()
+        if POLICY_TYPE == 'baseline':
+            self.state.organize_in_rows()
+        self.agent = Agent()
+        self.cost = 0
+        self.total_orders = 0
+        self.total_returns = 0
+        return
+    
+
+    def order_items(self):
+        """
+        Determines if more items are ordered.
+        
+        At the beginning of each time step, the environment must check if more
+        items are ordered. For each stack, it compares a random number in the 
+        interval (0,1) to the probability that another item on that stack will
+        be ordered. If the random number is less than the order probability, 
+        the number of ordered items on that stack will increase by 1 unless 
+        there is already 10 ordered items on the stack.
+
+        Returns
+        -------
+        None.
+
+        """
+        for i in range(N_STACKS):
+            if random.random() < ORDER_PROB:
+                if self.state.num_ordered[i] < 10:
+                    self.state.num_ordered[i] += 1
+                    self.total_orders += 1
+        return
+        
+    
     
     def update_cost(self):
         """
@@ -771,55 +819,47 @@ class Agent:
         self.cost += sum(self.state.num_ordered)
         return
     
+        
     def __repr__(self):
         """
-        Returns the string representation of an Agent object.
+        Returns the string representation of an Environment object.
 
         Returns
         -------
         str
-            The string representation of an Agent object.
+            The string representation of an Environment object.
 
         """
-        return str(self.state) + "t = " + str(self.time_step) + ", cost = " + str(self.cost) + ", returned = " + str(self.returned)
-        
-        
+        return (str(self.state)
+                + "cost = " + str(self.cost) 
+                + ", total_orders = " + str(self.total_orders) 
+                + ", total_returns = " + str(self.total_returns))
+
+
+
+
+
+
+
 
 def main():
-    x0 = State()
-    agent = Agent(x0)
+    env = Environment()
     
-    
-    while(agent.time_step < 10):
-        agent.state.order_items()
-        print(agent)
-        a = agent.random_policy()
-        num_ordered = sum(agent.state.num_ordered)
-        agent.state = agent.calculate_state(a)
-        agent.returned += num_ordered - sum(agent.state.num_ordered)
-        agent.update_cost()
-        agent.time_step += 1
-    return
-
-def main2():
-    x0 = State()
-    x0.organize_in_rows()
-    agent = Agent(x0)
-    
-    
-    while(agent.time_step < 30):
-        agent.state.order_items()
-        print(agent)
-        agent.update_cost()
-        agent.time_step += 1
-        a = agent.baseline_policy()
-        num_ordered = sum(agent.state.num_ordered)
-        agent.state = agent.calculate_state(a)
-        agent.returned += num_ordered - sum(agent.state.num_ordered)
+    for time_step in range(N_ITER):
+        print("\n\nt = " + str(time_step))
+        env.order_items()
+        print(env)
+        a = env.agent.policy(env.state)
+        print("actions = " + str(a.actions))
         
+        num_ordered1 = sum(env.state.num_ordered)
+        env.state = env.agent.calculate_state(env.state, a)
+        num_ordered2 = sum(env.state.num_ordered)
+        env.total_returns += num_ordered1 - num_ordered2
+        env.update_cost()
     return
 
-main2()
+main()
 
 
 
