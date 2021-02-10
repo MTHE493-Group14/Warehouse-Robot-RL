@@ -1,5 +1,3 @@
-import numpy as np
-
 from environment import Environment
 from warehouse_parameters import N_ITER
 
@@ -55,7 +53,7 @@ def main():
     print(env.agent.q)
     return
 
-def test():
+def test_enums():
     from state import State
     from location import Location
     
@@ -135,3 +133,4 @@ def test():
     
 
 main()
+

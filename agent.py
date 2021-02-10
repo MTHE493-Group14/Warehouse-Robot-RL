@@ -57,23 +57,20 @@ class Agent:
         return a
     
     def learning_policy(self, current_state):
-        s1num = current_state.enum()
+        snum = current_state.enum()
         possibleState = False
         while not possibleState:
+            min_visits = min(self.q.visits[snum][np.logical_not(np.isnan(self.q.visits[snum]))])
+            anum = list(self.q.visits[snum]).index(min_visits)
             a = Actions()
-            anum = a.enum()
-            qval = self.q.qvals[s1num][anum]
+            a.set_by_enum(anum)
+            qval = self.q.qvals[snum][anum]
             if not np.isnan(qval):
                 new_state = self.calculate_state(current_state, a)
                 possibleState = self.possible_state(current_state, new_state)
-                if s1num == 2 and anum == 1:
-                    print('\n\n\n\nSTOP')
-                    print(a)
-                    print(new_state)
-                    return 0
                 if not possibleState:
-                    self.q.qvals[s1num][anum] = np.nan
-                    self.q.visits[s1num][anum] = np.nan
+                    self.q.qvals[snum][anum] = np.nan
+                    self.q.visits[snum][anum] = np.nan
         return a
     
     def random_policy(self, current_state):
@@ -315,28 +312,36 @@ class Agent:
         new_state = copy.deepcopy(current_state)
 
         for robot_idx in range(N_ROBOTS):
-            try:
-                stack_num = current_state.stack_locs.index(current_state.robot_locs[robot_idx])
-            except ValueError:
-                stack_num = -1 # there is no stack in the same location
+            row = current_state.robot_locs[robot_idx].row
+            col = current_state.robot_locs[robot_idx].col
             lifting = current_state.lift[robot_idx]
+            
+            if current_state.robot_locs[robot_idx] in current_state.stack_locs:
+                stack_num = current_state.stack_locs.index(current_state.robot_locs[robot_idx])
+            else:
+                stack_num = -1
+                
 
             if a.actions[robot_idx] == "U":
-                new_state.robot_locs[robot_idx].row -= 1
+                # row -= 1
+                new_state.robot_locs[robot_idx].row = row - 1
                 if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].row -= 1
+                    new_state.stack_locs[stack_num].row = row - 1
             elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx].row += 1
+                # row += 1
+                new_state.robot_locs[robot_idx].row = row + 1
                 if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].row += 1
+                    new_state.stack_locs[stack_num].row = row + 1
             elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx].col -= 1
+                # col -= 1
+                new_state.robot_locs[robot_idx].col = col - 1
                 if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].col -= 1
+                    new_state.stack_locs[stack_num].col = col - 1
             elif a.actions[robot_idx] == "R":
-                new_state.robot_locs[robot_idx].col += 1
+                # col += 1
+                new_state.robot_locs[robot_idx].col = col + 1
                 if stack_num != -1 and lifting:
-                    new_state.stack_locs[stack_num].col += 1
+                    new_state.stack_locs[stack_num].col = col + 1
             elif a.actions[robot_idx] == "lift":
                 if stack_num != -1:
                     new_state.lift[robot_idx] = True
