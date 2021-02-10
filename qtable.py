@@ -14,8 +14,8 @@ class QTable:
         num_actions = len(Actions().valid_actions)**N_ROBOTS
         self.qvals = np.zeros((num_states, num_actions))
         self.visits = np.zeros((num_states, num_actions))
-        self.learning_rate = 1
-        self.discount_factor = 1
+        self.learning_rate = 0.8
+        self.discount_factor = 0.8
         return
     
     def update(self, s1, s2, a, r):
