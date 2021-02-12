@@ -61,70 +61,70 @@ def test_enums():
 
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(0,0)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 0
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(0,0)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,0)
-    x.lift[0] = True
-    x.orders[0] = 0
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(0,0)
     x.lift[0] = True
+    x.orders[0] = 0
+    print(x.grid())
+    print(x.enum())
+    
+    x.robot_locs[0] = Location(0,0)
+    x.stack_locs[0] = Location(0,0)
+    # x.lift[0] = True
     x.orders[0] = 1
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(0,1)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 0
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(0,1)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 1
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(1,0)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 0
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(1,0)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 1
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(1,1)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 0
     print(x.grid())
     print(x.enum())
     
     x.robot_locs[0] = Location(0,0)
     x.stack_locs[0] = Location(1,1)
-    x.lift[0] = False
+    # x.lift[0] = False
     x.orders[0] = 1
     print(x.grid())
     print(x.enum())

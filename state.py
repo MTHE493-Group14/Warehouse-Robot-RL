@@ -51,7 +51,7 @@ class State:
         valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
         self.robot_locs = random.sample(valid_locations, k=N_ROBOTS)
         self.stack_locs = random.sample(valid_locations, k=N_STACKS)
-        self.lift = [False]* N_ROBOTS
+        # self.lift = [False]* N_ROBOTS
         self.orders = [0]* N_STACKS
         return
     
@@ -170,10 +170,10 @@ class State:
             
         
         ## enumerate the lift state variable
-        enum_lift = 0
-        for i in range(N_ROBOTS):
-            enum_lift += self.lift[i] * 2 ** (N_ROBOTS - 1 - i)
-        possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
+        # enum_lift = 0
+        # for i in range(N_ROBOTS):
+        #     enum_lift += self.lift[i] * 2 ** (N_ROBOTS - 1 - i)
+        # possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
         # print('enum_lift =', enum_lift)
         # print('possible_orders =', possible_orders)
             
@@ -184,8 +184,8 @@ class State:
         # print('enum_orders =', enum_orders)
             
         enum = (enum_robots * possible_stacks_lift_orders
-               + enum_stacks * possible_lift_orders
-               + enum_lift * possible_orders
+            #    + enum_stacks * possible_lift_orders
+            #    + enum_lift * possible_orders
                + enum_orders)
         return enum
     
@@ -206,10 +206,10 @@ class State:
                 loc = Location(i, j)
                 cell = " "
                 if loc in self.robot_locs:
-                    if self.lift[self.robot_locs.index(loc)]:
-                        cell += "R "
-                    else:
-                        cell += "r "
+                    # if self.lift[self.robot_locs.index(loc)]:
+                    #     cell += "R "
+                    # else:
+                    cell += "r "
                 else:
                     cell += "  "
                     
@@ -242,6 +242,6 @@ class State:
         s = self.grid()
         s += "robots = " + str(self.robot_locs) + '\n'
         s += "stacks = " + str(self.stack_locs) + '\n'
-        s += "lifting = " + str(self.lift) + '\n'
+        # s += "lifting = " + str(self.lift) + '\n'
         s += "ordered = " + str(self.orders) + '\n'
         return s
