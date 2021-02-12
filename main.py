@@ -1,5 +1,4 @@
 from environment import Environment
-from warehouse_parameters import N_ITER
 
 
 """
@@ -33,104 +32,58 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 """
 
 
-def main():
+def train(n_iter, repeat):
     env = Environment()
+    if repeat:
+        env.agent.q.read_qtable()
     
-    for time_step in range(N_ITER):
-        print("\n\nt = " + str(time_step))
-        env.order_items()
+    for time_step in range(n_iter):
+        if time_step % 1000 == 0:
+            print("t = " + str(time_step))
+        a = env.agent.learning_policy(env.state)
+    
+        previous_state = env.state
+        env.state = env.agent.calculate_state(env.state, a)
+        env.update_cost()
+        env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
+    env.agent.q.save_qtable()
+    return
+
+def evaluate(n_iter):
+    env = Environment()
+    env.agent.q.read_qtable()
+    
+    for time_step in range(n_iter):
+        print('\n')
+        print("t = " + str(time_step))
+        print(env)
+        a = env.agent.greedy_policy(env.state)
+        print("actions = " + str(a.actions))
+        print('state = ' + str(env.state.enum()) + ', action = ' + str(a.enum()))
+    
+        env.state = env.agent.calculate_state(env.state, a)
+        env.update_cost()
+    return
+
+def baseline(n_iter):
+    env = Environment()
+    if not env.state.baseline_organization():
+        return
+    
+    for time_step in range(n_iter):
+        print('\n')
+        print("t = " + str(time_step))
         print(env)
         # print(env.state.grid())
-        a = env.agent.policy(env.state)
+        a = env.agent.baseline_policy(env.state)
         print("actions = " + str(a.actions))
-        # print(env.state.enum(), a.enum())
     
-        s1 = env.state
         env.state = env.agent.calculate_state(env.state, a)
-        env.total_returns += sum(s1.orders) - sum(env.state.orders)
         env.update_cost()
-        env.agent.q.update(s1, env.state, a, sum(env.state.orders))
-    print(env.agent.q)
     return
 
-def test_enums():
-    from state import State
-    from location import Location
-    
-    x = State()
-
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,0)
-    x.lift[0] = False
-    x.orders[0] = 0
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,0)
-    x.lift[0] = False
-    x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,0)
-    x.lift[0] = True
-    x.orders[0] = 0
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,0)
-    x.lift[0] = True
-    x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,1)
-    x.lift[0] = False
-    x.orders[0] = 0
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(0,1)
-    x.lift[0] = False
-    x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(1,0)
-    x.lift[0] = False
-    x.orders[0] = 0
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(1,0)
-    x.lift[0] = False
-    x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(1,1)
-    x.lift[0] = False
-    x.orders[0] = 0
-    print(x.grid())
-    print(x.enum())
-    
-    x.robot_locs[0] = Location(0,0)
-    x.stack_locs[0] = Location(1,1)
-    x.lift[0] = False
-    x.orders[0] = 1
-    print(x.grid())
-    print(x.enum())
-    
-    return
-    
-
-main()
-
+# train(n_iter=10000, repeat=False)
+# for i in range(10000):
+#     print(i)
+#     train(n_iter=100, repeat=True)
+evaluate(n_iter=10)
