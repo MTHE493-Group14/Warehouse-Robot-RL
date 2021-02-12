@@ -1,7 +1,8 @@
 import copy
+import random
 import numpy as np
 
-from warehouse_parameters import POLICY_TYPE, N_ROWS, N_COLS, N_ROBOTS, N_STACKS
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK, ORDER_PROB
 from actions import Actions
 from qtable import QTable
 
@@ -31,31 +32,6 @@ class Agent:
         self.q = QTable()
         return
     
-    def policy(self, current_state):
-        """
-        Determines the action that the agent should take in the current state.
-        
-        The policy used depends on the policy_type attribute.
-
-        Parameters
-        ----------
-        current_state : State
-            The current state of the environment.
-
-        Returns
-        -------
-        a : Actions
-            The list of actions to take in the current state.
-
-        """
-        if POLICY_TYPE == 'learning':
-            a = self.learning_policy(current_state)
-        elif POLICY_TYPE == 'baseline':
-            a = self.baseline_policy(current_state)
-        else:
-            a = self.random_policy(current_state)
-        return a
-    
     def learning_policy(self, current_state):
         snum = current_state.enum()
         possibleState = False
@@ -71,6 +47,21 @@ class Agent:
                 if not possibleState:
                     self.q.qvals[snum][anum] = np.nan
                     self.q.visits[snum][anum] = np.nan
+        return a
+    
+    def greedy_policy(self, current_state):
+        snum = current_state.enum()
+        possibleState = False
+        while not possibleState:
+            min_qval = min(self.q.qvals[snum][np.logical_not(np.isnan(self.q.qvals[snum]))])
+            anum = list(self.q.qvals[snum]).index(min_qval)
+            a = Actions()
+            a.set_by_enum(anum)
+            new_state = self.calculate_state(current_state, a)
+            possibleState = self.possible_state(current_state, new_state)
+            if not possibleState:
+                print('Error: Greedy policy suggests illegal action: ' + str(a))
+                return 0
         return a
     
     def random_policy(self, current_state):
@@ -321,29 +312,26 @@ class Agent:
             else:
                 stack_num = -1
                 
+                
 
             if a.actions[robot_idx] == "U":
-                # row -= 1
                 new_state.robot_locs[robot_idx].row = row - 1
-                if stack_num != -1 and lifting:
+                if (stack_num != -1) and lifting:
                     new_state.stack_locs[stack_num].row = row - 1
             elif a.actions[robot_idx] == "D":
-                # row += 1
                 new_state.robot_locs[robot_idx].row = row + 1
-                if stack_num != -1 and lifting:
+                if (stack_num != -1) and lifting:
                     new_state.stack_locs[stack_num].row = row + 1
             elif a.actions[robot_idx] == "L":
-                # col -= 1
                 new_state.robot_locs[robot_idx].col = col - 1
-                if stack_num != -1 and lifting:
+                if (stack_num != -1) and lifting:
                     new_state.stack_locs[stack_num].col = col - 1
             elif a.actions[robot_idx] == "R":
-                # col += 1
                 new_state.robot_locs[robot_idx].col = col + 1
-                if stack_num != -1 and lifting:
+                if (stack_num != -1) and lifting:
                     new_state.stack_locs[stack_num].col = col + 1
             elif a.actions[robot_idx] == "lift":
-                if stack_num != -1:
+                if (stack_num != -1):
                     new_state.lift[robot_idx] = True
             elif a.actions[robot_idx] == "drop":
                 new_state.lift[robot_idx] = False
@@ -352,9 +340,13 @@ class Agent:
                 print("Error: Invalid action")
                 
         for stack_idx in range(N_STACKS):
+            if random.random() < ORDER_PROB:
+                if new_state.orders[stack_idx] < ITEMS_PER_STACK:
+                    new_state.orders[stack_idx] += 1
             if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
                 and new_state.stack_locs[stack_idx].col == 0):
                 new_state.orders[stack_idx] = max(new_state.orders[stack_idx] - 1, 0)
+            
         return new_state
     
     def possible_state(self, current_state, new_state):

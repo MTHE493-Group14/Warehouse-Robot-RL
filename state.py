@@ -3,7 +3,7 @@ import math
 import copy
 
 from location import Location
-from warehouse_parameters import POLICY_TYPE, N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK
 from util import nPr
 
 class State:
@@ -55,7 +55,8 @@ class State:
         self.orders = [0]* N_STACKS
         return
     
-    def organize_in_rows(self):
+    
+    def baseline_organization(self):
         """
         Initializes robot and stack locations for the baseline policy.
         
@@ -73,15 +74,14 @@ class State:
 
         """
         ### RAISE EXCEPTION
-        if (N_ROWS >= 4 and N_COLS >= N_ROBOTS and N_STACKS == 2*N_ROBOTS
-            and POLICY_TYPE == 'baseline'):
+        if (N_ROWS >= 4 and N_COLS >= N_ROBOTS and N_STACKS == 2*N_ROBOTS):
             self.robot_locs = [Location(1, i) for i in range(N_ROBOTS)]
             self.stack_locs = ([Location(1, i) for i in range(N_ROBOTS)] 
                                + [Location(2, i) for i in range(N_ROBOTS)])
+            return True
         else:
             print("Error: Cannot organize in rows.")
-        return
-    
+            return False
         
     def enum(self):
         """
@@ -108,12 +108,6 @@ class State:
         """
         map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
         valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
-        ## calculate how many robots and stacks are in the same location
-        # robots_stacks_same_loc = 0
-        # for i in range(N_ROBOTS):
-        #     if self.robot_locs[i] in self.stack_locs:
-        #         robots_stacks_same_loc += 1
-        # print('robots_stacks_same_loc =', robots_stacks_same_loc)
         
         ## enumerate the location of robots
         enum_robots = 0
@@ -128,26 +122,6 @@ class State:
                                        * 2**N_ROBOTS
                                        * (ITEMS_PER_STACK+1)**N_STACKS)
         
-        #### eventually should change this to get rid of illegal states
-        # possible_stacks_lift_orders = 0
-        # for i in range(N_ROBOTS+1):
-        #     # i represents the number of robots lifting a stack
-            
-        #     # number of combinations for which robots are lifting
-        #     lift_combinations = nCr(N_ROBOTS, i)
-            
-        #     # number of permutations for which stacks are being lifted
-        #     stack_lift_perms = nPr(N_STACKS, i)
-            
-        #     # possible stack locations and orders given which robots are lifting
-        #     possible_stacks_orders = (nPr(N_ROWS*N_COLS-i, N_STACKS)
-        #                               * (ITEMS_PER_STACK+1)**N_STACKS)
-            
-        #     possible_stacks_lift_orders += (lift_combinations 
-        #                                     * stack_lift_perms
-        #                                     * possible_stacks_orders)
-        # print('\tenum_robots =', enum_robots)
-        # print('possible_stacks_lift_orders =', possible_stacks_lift_orders)
         
         ## enumerate the locations of stacks
         enum_stacks = 0
@@ -160,13 +134,6 @@ class State:
             
         possible_lift_orders = (2**N_ROBOTS
                                 * (ITEMS_PER_STACK+1)**N_STACKS)
-        
-        # possible_lift_orders = (2**robots_stacks_same_loc
-        #                         * (ITEMS_PER_STACK+1)**N_STACKS)
-        
-        
-        # print('enum_stacks =', enum_stacks)
-        # print('possible_lift_orders =', possible_lift_orders)
             
         
         ## enumerate the lift state variable
@@ -174,20 +141,44 @@ class State:
         for i in range(N_ROBOTS):
             enum_lift += self.lift[i] * 2 ** (N_ROBOTS - 1 - i)
         possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
-        # print('enum_lift =', enum_lift)
-        # print('possible_orders =', possible_orders)
             
         ## enumerate the order state variable
         enum_orders = 0
         for i in range(N_STACKS):
             enum_orders += self.orders[i] * (ITEMS_PER_STACK+1)**(N_STACKS-1-i)
-        # print('enum_orders =', enum_orders)
             
         enum = (enum_robots * possible_stacks_lift_orders
                + enum_stacks * possible_lift_orders
                + enum_lift * possible_orders
                + enum_orders)
         return enum
+    
+    def set_by_enum(self, num):
+        # map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
+        # valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
+        
+        # possible_stacks_lift_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
+        #                                * 2**N_ROBOTS
+        #                                * (ITEMS_PER_STACK+1)**N_STACKS)
+        
+        # ## enumerate the location of robots
+        # enum_robots = 0
+        # locations = copy.deepcopy(valid_locations)
+        # for i in range(N_ROBOTS):
+        #     idx = locations.index(self.robot_locs[i])
+        #     locations = locations[:idx] + locations[idx+1:]
+        #     coeff = nPr(len(locations), N_ROBOTS-1-i)
+        #     enum_robots += idx * coeff
+            
+        # locations = copy.deepcopy(valid_locations)
+        # for i in range(N_ROBOTS):
+            
+        #     robot_idx = int(num / num_acts**(N_ROBOTS - 1 - i)) % num_acts
+        #     robot_loc = locations[robot_idx]
+            
+            
+        
+        return
     
     def grid(self):
         """
