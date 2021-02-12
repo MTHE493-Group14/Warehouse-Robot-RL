@@ -312,12 +312,12 @@ class Agent:
         new_state = copy.deepcopy(current_state)
 
         for robot_idx in range(N_ROBOTS):
-            row = current_state.robot_locs[robot_idx].row
-            col = current_state.robot_locs[robot_idx].col
+            row = copy.deepcopy(current_state.robot_locs[robot_idx].row)
+            col = copy.deepcopy(current_state.robot_locs[robot_idx].col)
             # lifting = current_state.lift[robot_idx]
             
             isUnderStack = False
-
+            stack_num = -1
             if current_state.robot_locs[robot_idx] in current_state.stack_locs:
                 isUnderStack = True
                 stack_num = current_state.stack_locs.index(current_state.robot_locs[robot_idx])                
@@ -344,24 +344,33 @@ class Agent:
                 #     new_state.stack_locs[stack_num].col = col + 1
             elif a.actions[robot_idx] == "UC":
                 # row -= 1
-                if isUnderStack:
+                if isUnderStack and stack_num != -1:
                     new_state.robot_locs[robot_idx].row = row - 1
                     new_state.stack_locs[stack_num].row = row - 1
+                else:
+                    new_state.robot_locs[robot_idx].row = row - 1
             elif a.actions[robot_idx] == "DC":
                 # row += 1
-                if isUnderStack:
+                if isUnderStack and stack_num != -1:
                     new_state.robot_locs[robot_idx].row = row + 1
                     new_state.stack_locs[stack_num].row = row + 1
+                else:
+                    new_state.robot_locs[robot_idx].row = row + 1
             elif a.actions[robot_idx] == "LC":
                 # col -= 1
-                if isUnderStack:
+                if isUnderStack and stack_num != -1:
                     new_state.robot_locs[robot_idx].col = col - 1
                     new_state.stack_locs[stack_num].col = col - 1
+                else:
+                    new_state.robot_locs[robot_idx].col = col - 1
             elif a.actions[robot_idx] == "RC":
                 # col += 1
-                if isUnderStack:
+                if isUnderStack and stack_num != -1:
                     new_state.robot_locs[robot_idx].col = col + 1
                     new_state.stack_locs[stack_num].col = col + 1
+                else:
+                    new_state.robot_locs[robot_idx].col = col + 1
+
             elif a.actions[robot_idx] == 'N': # Not even sure if we need this
                 pass
             # elif a.actions[robot_idx] == "lift":
