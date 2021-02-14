@@ -49,6 +49,41 @@ class Location:
         """
         return self.row == other.row and self.col == other.col
     
+    def __lt__(self, other):
+        if self.row < other.row:
+            return True
+        elif self.row == other.row:
+            return self.col < other.col
+        else:
+            return False
+    
+    def __le__(self, other):
+        if self.row < other.row:
+            return True
+        elif self.row == other.row:
+            return self.col <= other.col
+        else:
+            return False
+    
+    def __gt__(self, other):
+        if self.row > other.row:
+            return True
+        elif self.row == other.row:
+            return self.col > other.col
+        else:
+            return False
+    
+    def __ge__(self, other):
+        if self.row > other.row:
+            return True
+        elif self.row == other.row:
+            return self.col >= other.col
+        else:
+            return False
+    
+    def __ne__(self, other):
+        return self.row != other.row or self.col != other.col
+    
     def __repr__(self):
         """
         Return the string representation of a Location object. 
