@@ -38,8 +38,6 @@ def train(n_iter, repeat):
         env.agent.q.read_qtable()
     
     for time_step in range(n_iter):
-        if time_step % 1000 == 0:
-            print("t = " + str(time_step))
         a = env.agent.learning_policy(env.state)
     
         previous_state = env.state
@@ -82,8 +80,11 @@ def baseline(n_iter):
         env.update_cost()
     return
 
-# train(n_iter=10000, repeat=False)
-# for i in range(10000):
-#     print(i)
-#     train(n_iter=100, repeat=True)
-evaluate(n_iter=10)
+train(n_iter=1000, repeat=False)
+for i in range(1000):
+    if i % 100 == 0:
+        print(i)
+    train(n_iter=10, repeat=True)
+evaluate(n_iter=5)
+
+# baseline(n_iter=100)
