@@ -51,7 +51,6 @@ class State:
         valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
         self.robot_locs = random.sample(valid_locations, k=N_ROBOTS)
         self.stack_locs = random.sample(valid_locations, k=N_STACKS)
-        self.lift = [False]* N_ROBOTS
         self.orders = [0]* N_STACKS
         return
     
@@ -118,9 +117,8 @@ class State:
             coeff = nPr(len(locations), N_ROBOTS-1-i)
             enum_robots += idx * coeff
             
-        possible_stacks_lift_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
-                                       * 2**N_ROBOTS
-                                       * (ITEMS_PER_STACK+1)**N_STACKS)
+        possible_stacks_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
+                                  * (ITEMS_PER_STACK+1)**N_STACKS)
         
         
         ## enumerate the locations of stacks
@@ -132,14 +130,6 @@ class State:
             coeff = nPr(len(locations), N_STACKS-1-i)
             enum_stacks += idx * coeff
             
-        possible_lift_orders = (2**N_ROBOTS
-                                * (ITEMS_PER_STACK+1)**N_STACKS)
-            
-        
-        ## enumerate the lift state variable
-        enum_lift = 0
-        for i in range(N_ROBOTS):
-            enum_lift += self.lift[i] * 2 ** (N_ROBOTS - 1 - i)
         possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
             
         ## enumerate the order state variable
@@ -147,9 +137,8 @@ class State:
         for i in range(N_STACKS):
             enum_orders += self.orders[i] * (ITEMS_PER_STACK+1)**(N_STACKS-1-i)
             
-        enum = (enum_robots * possible_stacks_lift_orders
-               + enum_stacks * possible_lift_orders
-               + enum_lift * possible_orders
+        enum = (enum_robots * possible_stacks_orders
+               + enum_stacks * possible_orders
                + enum_orders)
         return enum
     
@@ -158,7 +147,6 @@ class State:
         # valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
         
         # possible_stacks_lift_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
-        #                                * 2**N_ROBOTS
         #                                * (ITEMS_PER_STACK+1)**N_STACKS)
         
         # ## enumerate the location of robots
@@ -197,10 +185,7 @@ class State:
                 loc = Location(i, j)
                 cell = " "
                 if loc in self.robot_locs:
-                    if self.lift[self.robot_locs.index(loc)]:
-                        cell += "R "
-                    else:
-                        cell += "r "
+                    cell += "R "
                 else:
                     cell += "  "
                     
@@ -233,6 +218,5 @@ class State:
         s = self.grid()
         s += "robots = " + str(self.robot_locs) + '\n'
         s += "stacks = " + str(self.stack_locs) + '\n'
-        s += "lifting = " + str(self.lift) + '\n'
         s += "ordered = " + str(self.orders) + '\n'
         return s

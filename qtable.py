@@ -1,22 +1,21 @@
 import numpy as np
 import pandas as pd
 
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK, ORDER_PROB
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK
 from actions import Actions
 from util import nPr
 
 class QTable:
     def __init__(self):
         num_states = (nPr(N_ROWS*N_COLS, N_ROBOTS) 
-                      * nPr(N_ROWS*N_COLS, N_STACKS)
-                      * 2**N_ROBOTS 
+                      * nPr(N_ROWS*N_COLS, N_STACKS)    
                       * (ITEMS_PER_STACK+1)**N_STACKS)
         
         num_actions = len(Actions().valid_actions)**N_ROBOTS
         self.qvals = np.zeros((num_states, num_actions))
         self.visits = np.zeros((num_states, num_actions))
-        self.learning_rate = 0.3
-        self.discount_factor = 0.6
+        self.learning_rate = 0.8
+        self.discount_factor = 0.3
         return
     
     def update(self, s1, s2, a, r):

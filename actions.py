@@ -31,7 +31,7 @@ class Actions:
         None.
 
         """
-        self.valid_actions = ['U', 'D', 'L', 'R', 'lift', 'drop']
+        self.valid_actions = ['O', 'U', 'D', 'L', 'R', 'SU', 'SD', 'SL', 'SR']
         self.actions = random.choices(self.valid_actions, k=N_ROBOTS)
         return
     

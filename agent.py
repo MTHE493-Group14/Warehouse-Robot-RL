@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK, ORDER_PROB
+from location import Location
 from actions import Actions
 from qtable import QTable
 
@@ -208,31 +209,23 @@ class Agent:
                 desired_stack_loc = current_state.stack_locs[desired_stack_idx]
             if max_order == 0 or desired_stack_loc.col == 0:
                 # case 1
-                a.set_all_actions('drop')
+                a.set_all_actions('O')
             else:
                 robot_cols = [loc.col for loc in current_state.robot_locs]
                 desired_robot_idx = robot_cols.index(desired_stack_loc.col)
                 if current_state.robot_locs[desired_robot_idx].row != desired_stack_loc.row:
-                    if current_state.lift[desired_robot_idx]:
-                        # case 2
-                        a.set_all_actions('drop')
-                    else:
-                        # case 3
-                        if desired_stack_loc.row == 1:
-                            a.set_all_actions('U')
-                        elif desired_stack_loc.row == 2:
-                            a.set_all_actions('D')
+                    # case 3
+                    if desired_stack_loc.row == 1:
+                        a.set_all_actions('U')
+                    elif desired_stack_loc.row == 2:
+                        a.set_all_actions('D')
                 else:
-                    if not current_state.lift[desired_robot_idx]:
-                        # case 4
-                        a.set_all_actions('lift')
-                    else:
-                        # case 5
-                        a.set_all_actions('lift')
-                        if desired_stack_loc.row == 1:
-                            a.set_action(desired_robot_idx, 'U')
-                        elif desired_stack_loc.row == 2:
-                            a.set_action(desired_robot_idx, 'D')
+                    # case 5
+                    a.set_all_actions('O')
+                    if desired_stack_loc.row == 1:
+                        a.set_action(desired_robot_idx, 'SU')
+                    elif desired_stack_loc.row == 2:
+                        a.set_action(desired_robot_idx, 'SD')
         else:
             robot_cols = [loc.col for loc in current_state.robot_locs]
             in_outer_rows = [loc.row in {0, 3} for loc in current_state.robot_locs]
@@ -240,8 +233,8 @@ class Agent:
             desired_robot_loc = current_state.robot_locs[desired_robot_idx]
             if desired_robot_loc.col > 0:
                 # case 6
-                a.set_all_actions('lift')
-                a.set_action(desired_robot_idx, 'L')
+                a.set_all_actions('O')
+                a.set_action(desired_robot_idx, 'SL')
             else:
                 # case 7
                 for robot_idx in range(N_ROBOTS):
@@ -251,13 +244,13 @@ class Agent:
                 for robot_idx in range(N_ROBOTS):
                     robot_loc = current_state.robot_locs[robot_idx]
                     if robot_loc.col < missing_col:
-                        a.set_action(robot_idx, 'R')
+                        a.set_action(robot_idx, 'SR')
                     else:
-                        a.set_action(robot_idx, 'lift')
+                        a.set_action(robot_idx, 'O')
                 if desired_robot_loc.row == 0:
-                    a.set_action(desired_robot_idx, 'D')
+                    a.set_action(desired_robot_idx, 'SD')
                 else:
-                    a.set_action(desired_robot_idx, 'U')
+                    a.set_action(desired_robot_idx, 'SU')
         return a
     
     def calculate_state(self, current_state, a):
@@ -301,51 +294,47 @@ class Agent:
 
         """
         new_state = copy.deepcopy(current_state)
-
+        robot_locs = copy.deepcopy(current_state.robot_locs)
+        
         for robot_idx in range(N_ROBOTS):
-            row = current_state.robot_locs[robot_idx].row
-            col = current_state.robot_locs[robot_idx].col
-            lifting = current_state.lift[robot_idx]
+            row = robot_locs[robot_idx].row
+            col = robot_locs[robot_idx].col
             
-            if current_state.robot_locs[robot_idx] in current_state.stack_locs:
-                stack_num = current_state.stack_locs.index(current_state.robot_locs[robot_idx])
+            if robot_locs[robot_idx] in current_state.stack_locs:
+                stack_num = current_state.stack_locs.index(robot_locs[robot_idx])
             else:
                 stack_num = -1
                 
-                
 
             if a.actions[robot_idx] == "U":
-                new_state.robot_locs[robot_idx].row = row - 1
-                if (stack_num != -1) and lifting:
-                    new_state.stack_locs[stack_num].row = row - 1
+                new_state.robot_locs[robot_idx] = Location(row - 1, col)
+            elif a.actions[robot_idx] == "SU" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row - 1, col)
+                new_state.stack_locs[stack_num] = Location(row - 1, col)
             elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx].row = row + 1
-                if (stack_num != -1) and lifting:
-                    new_state.stack_locs[stack_num].row = row + 1
+                new_state.robot_locs[robot_idx] = Location(row + 1, col)
+            elif a.actions[robot_idx] == "SD" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row + 1, col)
+                new_state.stack_locs[stack_num] = Location(row + 1, col)
             elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx].col = col - 1
-                if (stack_num != -1) and lifting:
-                    new_state.stack_locs[stack_num].col = col - 1
+                new_state.robot_locs[robot_idx] = Location(row, col - 1)
+            elif a.actions[robot_idx] == "SL" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row, col - 1)
+                new_state.stack_locs[stack_num] = Location(row, col - 1)
             elif a.actions[robot_idx] == "R":
-                new_state.robot_locs[robot_idx].col = col + 1
-                if (stack_num != -1) and lifting:
-                    new_state.stack_locs[stack_num].col = col + 1
-            elif a.actions[robot_idx] == "lift":
-                if (stack_num != -1):
-                    new_state.lift[robot_idx] = True
-            elif a.actions[robot_idx] == "drop":
-                new_state.lift[robot_idx] = False
-            else:
-                ## RAISE EXCEPTION
-                print("Error: Invalid action")
-                
+                new_state.robot_locs[robot_idx] = Location(row, col + 1)
+            elif a.actions[robot_idx] == "SR" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row, col + 1)
+                new_state.stack_locs[stack_num] = Location(row, col + 1)
+          
+        order_nums = copy.deepcopy(new_state.orders)
         for stack_idx in range(N_STACKS):
             if random.random() < ORDER_PROB:
-                if new_state.orders[stack_idx] < ITEMS_PER_STACK:
-                    new_state.orders[stack_idx] += 1
+                if order_nums[stack_idx] < ITEMS_PER_STACK:
+                    new_state.orders[stack_idx] = order_nums[stack_idx] + 1
             if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
                 and new_state.stack_locs[stack_idx].col == 0):
-                new_state.orders[stack_idx] = max(new_state.orders[stack_idx] - 1, 0)
+                new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
             
         return new_state
     
