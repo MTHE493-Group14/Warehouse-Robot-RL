@@ -33,36 +33,20 @@ class Agent:
         self.q = QTable()
         return
     
-    def learning_policy(self, current_state):
+    def min_visits_policy(self, current_state):
         snum = current_state.enum()
-        possibleState = False
-        while not possibleState:
-            min_visits = min(self.q.visits[snum][np.logical_not(np.isnan(self.q.visits[snum]))])
-            anum = list(self.q.visits[snum]).index(min_visits)
-            a = Actions()
-            a.set_by_enum(anum)
-            qval = self.q.qvals[snum][anum]
-            if not np.isnan(qval):
-                new_state = self.calculate_state(current_state, a)
-                possibleState = self.possible_state(current_state, new_state)
-                if not possibleState:
-                    self.q.qvals[snum][anum] = np.nan
-                    self.q.visits[snum][anum] = np.nan
+        min_visits = min(self.q.visits[snum][np.logical_not(np.isnan(self.q.visits[snum]))])
+        anum = list(self.q.visits[snum]).index(min_visits)
+        a = Actions()
+        a.set_by_enum(anum)
         return a
     
     def greedy_policy(self, current_state):
         snum = current_state.enum()
-        possibleState = False
-        while not possibleState:
-            min_qval = min(self.q.qvals[snum][np.logical_not(np.isnan(self.q.qvals[snum]))])
-            anum = list(self.q.qvals[snum]).index(min_qval)
-            a = Actions()
-            a.set_by_enum(anum)
-            new_state = self.calculate_state(current_state, a)
-            possibleState = self.possible_state(current_state, new_state)
-            if not possibleState:
-                print('Error: Greedy policy suggests illegal action: ' + str(a))
-                return 0
+        min_qval = min(self.q.qvals[snum][np.logical_not(np.isnan(self.q.qvals[snum]))])
+        anum = list(self.q.qvals[snum]).index(min_qval)
+        a = Actions()
+        a.set_by_enum(anum)
         return a
     
     def random_policy(self, current_state):
@@ -84,12 +68,14 @@ class Agent:
             A list of actions that is possible in the current state.
 
         """
-        possibleState = False
-        while not possibleState:
-            a = Actions()
-            new_state = self.calculate_state(current_state, a)
-            possibleState = self.possible_state(current_state, new_state)
+        a = Actions()
         return a
+    
+    def epsilon_greedy_policy(self, current_state, epsilon):
+        if random.random() < epsilon:
+            return self.random_policy(current_state)
+        else:
+            return self.greedy_policy(current_state)
         
     def baseline_policy(self, current_state):
         """
@@ -278,68 +264,7 @@ class Agent:
         decrease by 1. Note: it does not matter if there is a robot carrying 
         stack or not, as long as the stack remains in the same location at a
         picking station, it is assumed that the item can be collected.
-
-        Parameters
-        ----------
-        current_state : State
-            The current state of the environment.
-        a : Actions
-            The action that the agent will take.
-
-        Returns
-        -------
-        new_state : State
-            The new state that the environment will enter if the given action
-            is taken.
-
-        """
-        new_state = copy.deepcopy(current_state)
-        robot_locs = copy.deepcopy(current_state.robot_locs)
         
-        for robot_idx in range(N_ROBOTS):
-            row = robot_locs[robot_idx].row
-            col = robot_locs[robot_idx].col
-            
-            if robot_locs[robot_idx] in current_state.stack_locs:
-                stack_num = current_state.stack_locs.index(robot_locs[robot_idx])
-            else:
-                stack_num = -1
-                
-
-            if a.actions[robot_idx] == "U":
-                new_state.robot_locs[robot_idx] = Location(row - 1, col)
-            elif a.actions[robot_idx] == "SU" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row - 1, col)
-                new_state.stack_locs[stack_num] = Location(row - 1, col)
-            elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx] = Location(row + 1, col)
-            elif a.actions[robot_idx] == "SD" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row + 1, col)
-                new_state.stack_locs[stack_num] = Location(row + 1, col)
-            elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx] = Location(row, col - 1)
-            elif a.actions[robot_idx] == "SL" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row, col - 1)
-                new_state.stack_locs[stack_num] = Location(row, col - 1)
-            elif a.actions[robot_idx] == "R":
-                new_state.robot_locs[robot_idx] = Location(row, col + 1)
-            elif a.actions[robot_idx] == "SR" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row, col + 1)
-                new_state.stack_locs[stack_num] = Location(row, col + 1)
-          
-        order_nums = copy.deepcopy(new_state.orders)
-        for stack_idx in range(N_STACKS):
-            if random.random() < ORDER_PROB:
-                if order_nums[stack_idx] < ITEMS_PER_STACK:
-                    new_state.orders[stack_idx] = order_nums[stack_idx] + 1
-            if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
-                and new_state.stack_locs[stack_idx].col == 0):
-                new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
-            
-        return new_state
-    
-    def possible_state(self, current_state, new_state):
-        """
         Checks if it is possible to transition from the current state to 
         the given new state.
         
@@ -358,40 +283,89 @@ class Agent:
         ----------
         current_state : State
             The current state of the environment.
-        new_state : State
-            The new state that will be transitioned to from the current state.
+        a : Actions
+            The action that the agent will take.
 
         Returns
         -------
-        bool
-            A boolean value indicating if the state transition is possible.
+        new_state : State
+            The new state that the environment will enter if the given action
+            is taken. If the new state is not possible, return the current 
+            state.
 
-        """    
-        robot_locs_taken = []
-        for robot_loc in new_state.robot_locs:
-            if (robot_loc.row in list(range(N_ROWS))
-                and robot_loc.col in list(range(N_COLS))
-                and robot_loc not in robot_locs_taken):
-                robot_locs_taken.append(robot_loc)
-            else: 
-                return False
+        """
+        # determine new robot and stack locations
+        new_state = copy.deepcopy(current_state)
+        robot_locs = copy.deepcopy(current_state.robot_locs)
+        
+        for robot_idx in range(N_ROBOTS):
+            row = robot_locs[robot_idx].row
+            col = robot_locs[robot_idx].col
+            
+            if robot_locs[robot_idx] in current_state.stack_locs:
+                stack_num = current_state.stack_locs.index(robot_locs[robot_idx])
+            else:
+                stack_num = -1
                 
-        stack_locs_taken = []
-        for stack_loc in new_state.stack_locs:
-            if (stack_loc.row in list(range(N_ROWS))
-                and stack_loc.col in list(range(N_COLS))
-                and stack_loc not in stack_locs_taken):
-                stack_locs_taken.append(stack_loc)
-            else: 
-                return False
+
+            if a.actions[robot_idx] == "U":
+                new_state.robot_locs[robot_idx] = Location(max(row-1, 0), col)
+            elif a.actions[robot_idx] == "SU" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(max(row-1, 0), col)
+                new_state.stack_locs[stack_num] = Location(max(row-1, 0), col)
+            elif a.actions[robot_idx] == "D":
+                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
+            elif a.actions[robot_idx] == "SD" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
+                new_state.stack_locs[stack_num] = Location(min(row+1, N_ROWS-1), col)
+            elif a.actions[robot_idx] == "L":
+                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
+            elif a.actions[robot_idx] == "SL" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
+                new_state.stack_locs[stack_num] = Location(row, max(col-1, 0))
+            elif a.actions[robot_idx] == "R":
+                new_state.robot_locs[robot_idx] = Location(row, min(col+1, N_COLS-1))
+            elif a.actions[robot_idx] == "SR" and stack_num != -1:
+                new_state.robot_locs[robot_idx] = Location(row, min(col+1, N_COLS-1))
+                new_state.stack_locs[stack_num] = Location(row, min(col+1, N_COLS-1))
         
-        robot_locs1 = current_state.robot_locs
-        robot_locs2 = new_state.robot_locs
+        possible = True
+        
+        # check if 2 robots or stacks are in the same spot
+        if (len(set(new_state.robot_locs)) < N_ROBOTS 
+            or len(set(new_state.stack_locs)) < N_STACKS):
+            possible = False
+            new_state.robot_locs = copy.deepcopy(current_state.robot_locs)
+            new_state.stack_locs = copy.deepcopy(current_state.stack_locs)
+
+        # check if robots passed through one another
         for i in range(N_ROBOTS):
-            for j in range(N_ROBOTS):
-                if (robot_locs1[i] == robot_locs2[j] 
-                    and robot_locs2[i] == robot_locs1[j] 
-                    and i != j):
-                    return False                
+            if not possible:
+                break
+            else:
+                for j in range(N_ROBOTS):
+                    if (robot_locs[i] == new_state.robot_locs[j] 
+                        and new_state.robot_locs[i] == robot_locs[j] 
+                        and i != j):
+                            possible = False
+                            new_state.robot_locs = copy.deepcopy(current_state.robot_locs)
+                            new_state.stack_locs = copy.deepcopy(current_state.stack_locs)
+                            break
         
-        return True
+        # check for new orders and determine if items were returned
+        order_nums = copy.deepcopy(new_state.orders)
+        for stack_idx in range(N_STACKS):
+            if random.random() < ORDER_PROB:
+                if order_nums[stack_idx] < ITEMS_PER_STACK:
+                    new_state.orders[stack_idx] = order_nums[stack_idx] + 1
+            if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
+                and new_state.stack_locs[stack_idx].col == 0):
+                new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
+        
+        
+        # reorder robots and stacks
+        new_state.orders = [order_num for _, order_num in sorted(zip(new_state.stack_locs, new_state.orders))]
+        new_state.robot_locs.sort()
+        new_state.stack_locs.sort()
+        
+        return new_state
