@@ -32,13 +32,13 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 """
 
 
-def train(n_iter, repeat):
+def train(n_iter, restart):
     env = Environment()
-    if repeat:
+    if not restart:
         env.agent.q.read_qtable()
     
     for time_step in range(n_iter):
-        a = env.agent.learning_policy(env.state)
+        a = env.agent.epsilon_greedy_policy(env.state, 0.3)
     
         previous_state = env.state
         env.state = env.agent.calculate_state(env.state, a)
@@ -72,7 +72,6 @@ def baseline(n_iter):
         print('\n')
         print("t = " + str(time_step))
         print(env)
-        # print(env.state.grid())
         a = env.agent.baseline_policy(env.state)
         print("actions = " + str(a.actions))
     
@@ -80,11 +79,11 @@ def baseline(n_iter):
         env.update_cost()
     return
 
-train(n_iter=1000, repeat=False)
-for i in range(1000):
-    if i % 100 == 0:
+# train(n_iter=1000, restart=True)
+for i in range(10000):
+    if i % 100 == 0: 
         print(i)
-    train(n_iter=10, repeat=True)
+    train(n_iter=10, restart=False)
 evaluate(n_iter=5)
 
 # baseline(n_iter=100)
