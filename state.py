@@ -4,7 +4,7 @@ import copy
 
 from location import Location
 from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK
-from util import nPr
+from util import nCr
 
 class State:
     """
@@ -50,7 +50,9 @@ class State:
         map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
         valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
         self.robot_locs = random.sample(valid_locations, k=N_ROBOTS)
+        self.robot_locs.sort()
         self.stack_locs = random.sample(valid_locations, k=N_STACKS)
+        self.stack_locs.sort()
         self.orders = [0]* N_STACKS
         return
     
@@ -75,8 +77,10 @@ class State:
         ### RAISE EXCEPTION
         if (N_ROWS >= 4 and N_COLS >= N_ROBOTS and N_STACKS == 2*N_ROBOTS):
             self.robot_locs = [Location(1, i) for i in range(N_ROBOTS)]
+            self.robot_locs.sort()
             self.stack_locs = ([Location(1, i) for i in range(N_ROBOTS)] 
                                + [Location(2, i) for i in range(N_ROBOTS)])
+            self.stack_locs.sort()
             return True
         else:
             print("Error: Cannot organize in rows.")
@@ -107,17 +111,22 @@ class State:
         """
         map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
         valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
+                
         
         ## enumerate the location of robots
         enum_robots = 0
         locations = copy.deepcopy(valid_locations)
         for i in range(N_ROBOTS):
             idx = locations.index(self.robot_locs[i])
-            locations = locations[:idx] + locations[idx+1:]
-            coeff = nPr(len(locations), N_ROBOTS-1-i)
-            enum_robots += idx * coeff
+            if i == N_ROBOTS - 1:
+                enum_robots += idx
+            else:
+                locations = locations[1:]
+                for j in range(idx):
+                    enum_robots += nCr(len(locations), N_ROBOTS - i - 1)
+                    locations = locations[1:]
             
-        possible_stacks_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
+        possible_stacks_orders = (nCr(N_ROWS * N_COLS, N_STACKS)
                                   * (ITEMS_PER_STACK+1)**N_STACKS)
         
         
@@ -126,9 +135,13 @@ class State:
         locations = copy.deepcopy(valid_locations)
         for i in range(N_STACKS):
             idx = locations.index(self.stack_locs[i])
-            locations = locations[:idx] + locations[idx+1:]
-            coeff = nPr(len(locations), N_STACKS-1-i)
-            enum_stacks += idx * coeff
+            if i == N_STACKS - 1:
+                enum_stacks += idx
+            else:
+                locations = locations[1:]
+                for j in range(idx):
+                    enum_stacks += nCr(len(locations), N_STACKS - i - 1)
+                    locations = locations[1:]
             
         possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
             
@@ -143,30 +156,23 @@ class State:
         return enum
     
     def set_by_enum(self, num):
-        # map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
-        # valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
+        # possible_stacks_orders = (nCr(N_ROWS * N_COLS, N_STACKS)
+        #                           * (ITEMS_PER_STACK+1)**N_STACKS)
         
-        # possible_stacks_lift_orders = (nPr(N_ROWS * N_COLS, N_STACKS)
-        #                                * (ITEMS_PER_STACK+1)**N_STACKS)
+        # possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
         
-        # ## enumerate the location of robots
-        # enum_robots = 0
-        # locations = copy.deepcopy(valid_locations)
-        # for i in range(N_ROBOTS):
-        #     idx = locations.index(self.robot_locs[i])
-        #     locations = locations[:idx] + locations[idx+1:]
-        #     coeff = nPr(len(locations), N_ROBOTS-1-i)
-        #     enum_robots += idx * coeff
-            
-        # locations = copy.deepcopy(valid_locations)
+        # enum_robots = int(num / possible_stacks_orders)
+        
+        # cnt = 0
+        # robot_locs = list(range(N_ROBOTS))
         # for i in range(N_ROBOTS):
             
-        #     robot_idx = int(num / num_acts**(N_ROBOTS - 1 - i)) % num_acts
-        #     robot_loc = locations[robot_idx]
-            
-            
         
-        return
+        # enum_stacks = int(num / possible_orders) % possible_stacks_orders
+        
+        # enum_orders = num % possible_orders
+        
+        return 
     
     def grid(self):
         """
@@ -218,5 +224,5 @@ class State:
         s = self.grid()
         s += "robots = " + str(self.robot_locs) + '\n'
         s += "stacks = " + str(self.stack_locs) + '\n'
-        s += "ordered = " + str(self.orders) + '\n'
+        s += "orders = " + str(self.orders) + '\n'
         return s
