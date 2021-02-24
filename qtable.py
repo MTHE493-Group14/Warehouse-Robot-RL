@@ -1,21 +1,19 @@
 import numpy as np
 import pandas as pd
 
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK, LEARNING_RATE, DISCOUNT_FACTOR
 from actions import Actions
-from util import nPr
+from util import nCr
 
 class QTable:
     def __init__(self):
-        num_states = (nPr(N_ROWS*N_COLS, N_ROBOTS) 
-                      * nPr(N_ROWS*N_COLS, N_STACKS)    
+        num_states = (nCr(N_ROWS*N_COLS, N_ROBOTS) 
+                      * nCr(N_ROWS*N_COLS, N_STACKS)    
                       * (ITEMS_PER_STACK+1)**N_STACKS)
         
         num_actions = len(Actions().valid_actions)**N_ROBOTS
         self.qvals = np.zeros((num_states, num_actions))
         self.visits = np.zeros((num_states, num_actions))
-        self.learning_rate = 0.8
-        self.discount_factor = 0.3
         return
     
     def update(self, s1, s2, a, r):
@@ -25,7 +23,7 @@ class QTable:
         
         old_val = self.qvals[s1num][anum]
         min_val = min(self.qvals[s2num][np.logical_not(np.isnan(self.qvals[s2num]))])
-        self.qvals[s1num][anum] += self.learning_rate*(r + self.discount_factor*(min_val) - old_val)
+        self.qvals[s1num][anum] += LEARNING_RATE*(r + DISCOUNT_FACTOR*(min_val) - old_val)
         self.visits[s1num][anum] += 1
         return
     
