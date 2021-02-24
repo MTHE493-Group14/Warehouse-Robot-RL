@@ -84,6 +84,9 @@ class Location:
     def __ne__(self, other):
         return self.row != other.row or self.col != other.col
     
+    def __hash__(self):
+        return hash((self.row, self.col))
+    
     def __repr__(self):
         """
         Return the string representation of a Location object. 
