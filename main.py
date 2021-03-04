@@ -32,58 +32,78 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 """
 
 
-def train(n_iter, restart):
+def train(n_reps=10000, n_iter=20, overwrite=False):
     env = Environment()
-    if not restart:
+    if not overwrite:
         env.agent.q.read_qtable()
-    
-    for time_step in range(n_iter):
-        a = env.agent.epsilon_greedy_policy(env.state, 0.3)
-    
-        previous_state = env.state
-        env.state = env.agent.calculate_state(env.state, a)
-        env.update_cost()
-        env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
+        
+    for rep in range(n_reps):
+        env.state.reset()
+        for time_step in range(n_iter):
+            a = env.agent.epsilon_greedy_policy(env.state, 0.9)
+            previous_state = env.state
+            env.state = env.calculate_state(env.state, a)
+            env.update_cost()
+            env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
     env.agent.q.save_qtable()
     return
 
-def evaluate(n_iter):
+def evaluate(n_reps=100, n_iter=100, show=29, train=False):
     env = Environment()
     env.agent.q.read_qtable()
     
-    for time_step in range(n_iter):
+    for time_step in range(show):
         print('\n')
         print("t = " + str(time_step))
         print(env)
         a = env.agent.greedy_policy(env.state)
         print("actions = " + str(a.actions))
         print('state = ' + str(env.state.enum()) + ', action = ' + str(a.enum()))
-    
-        env.state = env.agent.calculate_state(env.state, a)
+        env.state = env.calculate_state(env.state, a)
         env.update_cost()
+    
+    for rep in range(n_reps):
+        env.state.reset()
+        for time_step in range(n_iter):
+            a = env.agent.greedy_policy(env.state)
+            if train:
+                previous_state = env.state
+            env.state = env.calculate_state(env.state, a)
+            env.update_cost()
+            if train:
+                env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
+    env.agent.q.save_qtable()
+    print('\nscore = ' + str(env.cost/n_iter/n_reps))
     return
 
-def baseline(n_iter):
+def baseline(n_iter=1000, show=10):
     env = Environment()
     if not env.state.baseline_organization():
         return
     
-    for time_step in range(n_iter):
+    for time_step in range(show):
         print('\n')
         print("t = " + str(time_step))
         print(env)
         a = env.agent.baseline_policy(env.state)
         print("actions = " + str(a.actions))
-    
-        env.state = env.agent.calculate_state(env.state, a)
+        print('state = ' + str(env.state.enum()) + ', action = ' + str(a.enum()))
+        env.state = env.calculate_state(env.state, a)
         env.update_cost()
+        
+    for time_step in range(n_iter):
+        a = env.agent.greedy_policy(env.state)
+        env.state = env.calculate_state(env.state, a)
+        env.update_cost()
+    
+    print('\nscore = ' + str(env.cost/n_iter))
     return
 
-# train(n_iter=1000, restart=True)
-for i in range(10000):
-    if i % 100 == 0: 
-        print(i)
-    train(n_iter=10, restart=False)
-evaluate(n_iter=5)
+# train(n_reps=100, n_iter=100, overwrite=True)
 
-# baseline(n_iter=100)
+for i in range(1000):
+    print('\n', i)
+    train()
+    evaluate(train=True)
+    
+# baseline()
