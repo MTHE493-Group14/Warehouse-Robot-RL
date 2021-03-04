@@ -44,7 +44,7 @@ def train(n_reps=10000, n_iter=20, overwrite=False):
             previous_state = env.state
             env.state = env.calculate_state(env.state, a)
             env.update_cost()
-            env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
+            env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
     env.agent.q.save_qtable()
     return
 
@@ -71,7 +71,7 @@ def evaluate(n_reps=100, n_iter=100, show=29, train=False):
             env.state = env.calculate_state(env.state, a)
             env.update_cost()
             if train:
-                env.agent.q.update(previous_state, env.state, a, sum(env.state.orders))
+                env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
     env.agent.q.save_qtable()
     print('\nscore = ' + str(env.cost/n_iter/n_reps))
     return
