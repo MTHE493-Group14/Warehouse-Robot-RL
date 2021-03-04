@@ -4,18 +4,27 @@ from warehouse_parameters import N_ROBOTS
 
 class Actions:
     """
-    The actions chosen by the central agent for all the robots to take.
+    The actions that the robots will take, chosen by the central agent.
     
-    At any time step, each robot may move up, move down, move left, move right,
-    lift a stack, or drop a stack.
+    At any time step, each robot may perform one of the following 9 actions:
+        O : Do nothing.
+        U : Move up.
+        D : Move down.
+        L : Move left.
+        R : Move right.
+        SU : Move up with a stack.
+        SD : Move down with a stack.
+        SL : Move left with a stack.
+        SR : Move right with a stack.
     
     Attributes
     ----------
     valid_actions : [str]
-        A list of the valid actions for a robot to take.
+        A list of the valid actions for a robot to take. This list does not 
+        change.
     actions : [str]
-        A list containing 1 action for each of the robots to take. The length
-        of actions is equal to N_ROBOTS.
+        A list containing 1 action per robot. The length of actions is equal 
+        to N_ROBOTS.
     """
     
     def __init__(self):
@@ -51,13 +60,21 @@ class Actions:
 
         Returns
         -------
-        None.
+        bool
+            Boolean value indicating if the action was successfully set.
 
         """
         ## RAISE EXCEPTION
-        if robot_idx in range(N_ROBOTS) and action in self.valid_actions:
-            self.actions[robot_idx] = action
-        return
+        if robot_idx in range(N_ROBOTS):
+            if action in self.valid_actions:
+                self.actions[robot_idx] = action
+                return True
+            else:
+                print('Error: ' + action + ' is not a valid action.')
+                return False
+        else:
+            print('Error: ' + str(robot_idx) + ' is not a valid robot index.')
+            return False
     
     def set_all_actions(self, action):
         """
@@ -72,13 +89,17 @@ class Actions:
 
         Returns
         -------
-        None.
+        bool
+            Boolean value indicating if the action was successfully set.
 
         """
         ## RAISE EXCEPTION
         if action in self.valid_actions:
             self.actions = [action] * N_ROBOTS
-        return
+            return True
+        else:
+            print('Error: ' + action + ' is not a valid action.')
+            return False
         
     def enum(self):
         """
@@ -103,12 +124,28 @@ class Actions:
         return enum
     
     def set_by_enum(self, num):
-        num_acts = len(self.valid_actions)
-        if num in range(num_acts ** N_ROBOTS):
+        """
+        Set the action according to an enumeration value.
+
+        Parameters
+        ----------
+        num : int
+            Enumeration value.
+
+        Returns
+        -------
+        bool
+            Boolean value indicating if the action was successfully set.
+
+        """
+        num_actions = len(self.valid_actions)
+        if num in range(num_actions ** N_ROBOTS):
             for i in range(N_ROBOTS):
-                action_idx = int(num / num_acts**(N_ROBOTS - 1 - i)) % num_acts
+                action_idx = int(num / num_actions**(N_ROBOTS - 1 - i)) % num_actions
                 self.set_action(i, self.valid_actions[action_idx])
-        return
+            return True
+        else:
+            return False
     
     def __repr__(self):
         """
