@@ -1,11 +1,9 @@
 import copy
 import random
-import numpy as np
 
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, ITEMS_PER_STACK, ORDER_PROB
-from location import Location
 from actions import Actions
-from qtable import QTable
+from tables import Tables
+from warehouse_parameters import N_ROBOTS
 
 class Agent:
     """
@@ -13,38 +11,66 @@ class Agent:
     
     Attributes
     ----------
-    q : QTable
-        The Q-Table representing the expected future reward from selecting
-        each action when in each state.
+    tables : Tables
+        The tables used for training.
     """
     
     def __init__(self):
         """
         Creates an Agent object.
         
-        The agent may follow a random policy, baseline policy, learning policy,
-        or optimal policy. Initiate the Q-Table.
+        The Agent chooses the actions to take according to some policy. It
+        also keeps track of q-value estimates, visits, and which actions do 
+        not change the robot/stack locations.
 
         Returns
         -------
         None.
 
         """
-        self.q = QTable()
+        self.tables = Tables()
         return
     
     def min_visits_policy(self, current_state):
+        """
+        Selects the action that has been tried the least.
+
+        Parameters
+        ----------
+        current_state : State
+            The state the agent is currently in.
+
+        Returns
+        -------
+        Actions
+            The actions that should be taken if following this policy.
+
+        """
         snum = current_state.enum()
-        min_visits = min(self.q.visits[snum][np.logical_not(np.isnan(self.q.visits[snum]))])
-        anum = list(self.q.visits[snum]).index(min_visits)
+        min_visits = min(self.tables.visits[snum])
+        anum = list(self.tables.visits[snum]).index(min_visits)
         a = Actions()
         a.set_by_enum(anum)
         return a
     
     def greedy_policy(self, current_state):
+        """
+        Selects the action that has the lowest q-value estimate.
+
+        Parameters
+        ----------
+        current_state : State
+            The state the agent is currently in.
+
+        Returns
+        -------
+        Actions
+            The actions that should be taken if following this policy.
+
+        """
         snum = current_state.enum()
-        min_qval = min(self.q.qvals[snum][np.logical_not(np.isnan(self.q.qvals[snum]))])
-        anum = list(self.q.qvals[snum]).index(min_qval)
+        min_qval = min(self.tables.qvals[snum])
+        anum = list(self.tables.qvals[snum]).index(min_qval)
         a = Actions()
         a.set_by_enum(anum)
         return a
@@ -52,26 +78,33 @@ class Agent:
     def random_policy(self, current_state):
         """
         Randomly determines an action to take given the current state.
-        
-        This policy is only used to test the functionality of the simulation.
-        
-        First, a random list of actions is selected, the new state is 
-        calculated given that random list of actions, and then it is checked if
-        the new state is possible. If the new state is possible, return that 
-        list of actions. If the new state is not possible, the process is 
-        repeated until a list of actions is found that results in a possible 
-        new state.
 
         Returns
         -------
         Actions
-            A list of actions that is possible in the current state.
+            The actions that should be taken if following this policy.
 
         """
         a = Actions()
         return a
     
     def epsilon_greedy_policy(self, current_state, epsilon):
+        """
+        Act randomly with probability epsilon. Otherwise act greedily.
+
+        Parameters
+        ----------
+        current_state : State
+            The current state the agent is in.
+        epsilon : float
+            The probability that the agent should act randomly.
+
+        Returns
+        -------
+        Actions
+            The actions that should be taken if following this policy.
+
+        """
         if random.random() < epsilon:
             return self.random_policy(current_state)
         else:
@@ -89,14 +122,15 @@ class Agent:
         station.
         
         For each column in the grid, there are 2 stacks and 1 robot. The stack
-        with the highest number of outstanding ordered items is identified.
-        All robots will move to the correct row that this stack is located, 
-        then the robot in the same column as the desired stack will move the 
-        stack into one of the outer rows (top or bottom row), the same robot 
-        will then move the desired stack to the leftmost column in the grid 
-        (where the picking stations are), and lastly the robot will return the 
-        desired stack to its original row while the other robots shift the 
-        stacks to the right to make room for the desired stack.
+        with the highest number of outstanding ordered items that is not 
+        already at a picking station is identified. All robots will move to 
+        the row that this desired stack is located, then the robot in the same 
+        column as the desired stack will move the stack into one of the outer 
+        rows (top or bottom row). The same robot will then move the desired 
+        stack to the leftmost column in the grid (where the picking stations 
+        are), and lastly the robot will return the desired stack to its 
+        original row while the other robots shift the stacks to the right to 
+        make room for the desired stack.
         
         When following this policy, there are 7 types of states. Each type of 
         state has a unique list of actions that should be taken when in that 
@@ -107,70 +141,50 @@ class Agent:
             have items ordered are already located at a picking station.
             
             In this type of state, nothing needs to be done. Each robot can 
-            perform the 'drop' action.
+            do nothing.
         Case 2:
-            All stacks and robots are in the 2 middle rows. The robots are
-            lifting stacks in one of the rows but the stack with the most 
-            ordered items that is not already located at a picking 
-            station is in the other row.
+            All stacks and robots are in the 2 middle rows. The robots are not
+            in the same row as the stack with the most ordered items that is 
+            not already at a picking station. 
             
-            In this type of state, the robots need to prepare to move to the 
-            row with the desired stack. Each robot should drop the stacks they 
-            are lifting.
+            In this type of state, the robots need to move to the row with the 
+            desired stack. Each robot should move up/down to the correct row.
         Case 3:
-            All stacks and robots are in the 2 middle rows. The robots are
-            not lifting stacks but the stack with the most ordered items that 
-            is not already located at a picking station is in the other row.
-            
-            In this type of state, the robots are ready to move to the correct 
-            row with the desired stack. Each robot should move up/down to be 
-            in the correct row.
-        Case 4:
-            All stacks and robots are in the 2 middle rows. The robots are
-            not lifting stacks and the stack with the most ordered items that 
-            is not already located at a picking station is in the same row as
-            the robots.
-            
-            In this type of state, the robots are ready to pick up the desired
-            stack and start moving it to a picking station. Each robot should 
-            lift the stack in the same location as them.
-        Case 5:
-            All stacks and robots are in the 2 middle rows. The robots are 
-            lifting stacks, including the stack with the most ordered items 
-            that is not already located at a picking station.
+            All stacks and robots are in the 2 middle rows. The robots are in 
+            the same row as the stack with the most ordered items that is not
+            already at a picking station. 
             
             In this type of state, the robots are ready to start moving the 
-            desired stack to a picking station. The robot lifting the desired 
-            stack should move up/down into an outer row while the others 
-            continue to lift their stacks.
-        Case 6: 
+            desired stack to a picking station. The robot in the same column
+            as the desired stack should move the stack to an outer row. The 
+            other robots can do nothing.
+        Case 4: 
             All stacks and robots are in the 2 middle rows except for 1 robot 
             and stack. This robot and stack is heading down to the picking 
             station so the item can be collected by a worker but it has not 
-            yet reached the first column in the warehouse grid. All other 
-            robots are still lifting stacks in the desired stack's orginal 
-            row.
+            yet reached the leftmost column in the warehouse grid. All other 
+            robots are waiting patiently in the desired stack's orginal row.
             
             In this type of state, the robots can continue moving the desired 
-            stack to a picking station. The robot lifting the desired stack 
+            stack to a picking station. The robot with the desired stack 
             should move left towards the picking stations while the others 
-            continue to lift their stacks.
-        Case 7:
+            continue to do nothing.
+        Case 5:
             All stacks and robots are in the 2 middle rows except for 1 robot 
             and stack. This robot and stack is heading down to the picking 
             station so the item can be collected by a worker and has reached
-            the first column in the warehouse grid. All other robots are still 
-            lifting stacks in the desired stack's orginal row.
+            the leftmost column in the warehouse grid. All other robots are 
+            waiting patiently in the desired stack's orginal row.
             
             In this type of state, the stacks in the original row can shift
-            over to make room for the desired stack to return to its original 
-            row. After this is done, the desired stack will remain still in 
-            a picking station for a few time steps so the worker can collect
-            the ordered item. The robot lifting the desired stack should move 
-            up/down to return to the original row, any robots in columns that
-            are to the left of the desired stack's original column should 
-            move to the right to make room, and all other robots should 
-            continue to lift their stacks.
+            over with the stacks in their column to make room for the desired 
+            stack to return to its original row. After this is done, the 
+            desired stack will remain still in a picking station for a few 
+            time steps so the worker can collect the ordered item. The robot 
+            with the desired stack should move up/down to return to the 
+            original row, any robots in columns that are to the left of the 
+            desired stack's original column should move to the right with 
+            their stacks to make room, and all other robots should do nothing.
 
         Returns
         -------
@@ -200,13 +214,13 @@ class Agent:
                 robot_cols = [loc.col for loc in current_state.robot_locs]
                 desired_robot_idx = robot_cols.index(desired_stack_loc.col)
                 if current_state.robot_locs[desired_robot_idx].row != desired_stack_loc.row:
-                    # case 3
+                    # case 2
                     if desired_stack_loc.row == 1:
                         a.set_all_actions('U')
                     elif desired_stack_loc.row == 2:
                         a.set_all_actions('D')
                 else:
-                    # case 5
+                    # case 3
                     a.set_all_actions('O')
                     if desired_stack_loc.row == 1:
                         a.set_action(desired_robot_idx, 'SU')
@@ -218,11 +232,11 @@ class Agent:
             desired_robot_idx = in_outer_rows.index(True)
             desired_robot_loc = current_state.robot_locs[desired_robot_idx]
             if desired_robot_loc.col > 0:
-                # case 6
+                # case 4
                 a.set_all_actions('O')
                 a.set_action(desired_robot_idx, 'SL')
             else:
-                # case 7
+                # case 5
                 for robot_idx in range(N_ROBOTS):
                     if robot_idx not in robot_cols:
                         missing_col = robot_idx
@@ -238,134 +252,3 @@ class Agent:
                 else:
                     a.set_action(desired_robot_idx, 'SU')
         return a
-    
-    def calculate_state(self, current_state, a):
-        """
-        Determines the new state if taking an action in the current state. 
-        
-        For each robot, check if there stack in the same location as the 
-        robot and then make adjustments to the state based on what the action
-        is. Next, check if stacks are located in the picking stations and 
-        adjust the number of ordered items on the stacks accordingly.
-        
-        If the action is to move up, down, left or right, then adjust the 
-        location of the robot. If there is a stack in the same location as the 
-        robot and the robot is lifting the stack, then the stack will move 
-        along with the robot. If not, then only the robot will move.
-        
-        If the action is to lift a stack, the lift state for that robot will 
-        be set to True if there is a stack in the same location as the robot.
-        
-        If the action is to drop a stack, then the lift state for that robot 
-        will be set to False.
-        
-        If a stack remains in a picking station for 1 whole time step, then if 
-        the stack has ordered items, the orders value for that stack will
-        decrease by 1. Note: it does not matter if there is a robot carrying 
-        stack or not, as long as the stack remains in the same location at a
-        picking station, it is assumed that the item can be collected.
-        
-        Checks if it is possible to transition from the current state to 
-        the given new state.
-        
-        First, it is checked that no robot leaves the warehouse grid in the
-        new state and that no two robots are in the same location in the new
-        state. Next, it is checked that no stack leaves and warehouse grid in 
-        new state and that no two stacks are in the same location in the new 
-        state. Lastly, it is checked that no two robots pass through one 
-        another when transitioning from the current state to the new state 
-        (i.e. 2 robots switch locations in the transition).
-        
-        If all these conditions are met, then the new state is possible. If 
-        not, then the new state is not possible.
-
-        Parameters
-        ----------
-        current_state : State
-            The current state of the environment.
-        a : Actions
-            The action that the agent will take.
-
-        Returns
-        -------
-        new_state : State
-            The new state that the environment will enter if the given action
-            is taken. If the new state is not possible, return the current 
-            state.
-
-        """
-        # determine new robot and stack locations
-        new_state = copy.deepcopy(current_state)
-        robot_locs = copy.deepcopy(current_state.robot_locs)
-        
-        for robot_idx in range(N_ROBOTS):
-            row = robot_locs[robot_idx].row
-            col = robot_locs[robot_idx].col
-            
-            if robot_locs[robot_idx] in current_state.stack_locs:
-                stack_num = current_state.stack_locs.index(robot_locs[robot_idx])
-            else:
-                stack_num = -1
-                
-
-            if a.actions[robot_idx] == "U":
-                new_state.robot_locs[robot_idx] = Location(max(row-1, 0), col)
-            elif a.actions[robot_idx] == "SU" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(max(row-1, 0), col)
-                new_state.stack_locs[stack_num] = Location(max(row-1, 0), col)
-            elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
-            elif a.actions[robot_idx] == "SD" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
-                new_state.stack_locs[stack_num] = Location(min(row+1, N_ROWS-1), col)
-            elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
-            elif a.actions[robot_idx] == "SL" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
-                new_state.stack_locs[stack_num] = Location(row, max(col-1, 0))
-            elif a.actions[robot_idx] == "R":
-                new_state.robot_locs[robot_idx] = Location(row, min(col+1, N_COLS-1))
-            elif a.actions[robot_idx] == "SR" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row, min(col+1, N_COLS-1))
-                new_state.stack_locs[stack_num] = Location(row, min(col+1, N_COLS-1))
-        
-        possible = True
-        
-        # check if 2 robots or stacks are in the same spot
-        if (len(set(new_state.robot_locs)) < N_ROBOTS 
-            or len(set(new_state.stack_locs)) < N_STACKS):
-            possible = False
-            new_state.robot_locs = copy.deepcopy(current_state.robot_locs)
-            new_state.stack_locs = copy.deepcopy(current_state.stack_locs)
-
-        # check if robots passed through one another
-        for i in range(N_ROBOTS):
-            if not possible:
-                break
-            else:
-                for j in range(N_ROBOTS):
-                    if (robot_locs[i] == new_state.robot_locs[j] 
-                        and new_state.robot_locs[i] == robot_locs[j] 
-                        and i != j):
-                            possible = False
-                            new_state.robot_locs = copy.deepcopy(current_state.robot_locs)
-                            new_state.stack_locs = copy.deepcopy(current_state.stack_locs)
-                            break
-        
-        # check for new orders and determine if items were returned
-        order_nums = copy.deepcopy(new_state.orders)
-        for stack_idx in range(N_STACKS):
-            if random.random() < ORDER_PROB:
-                if order_nums[stack_idx] < ITEMS_PER_STACK:
-                    new_state.orders[stack_idx] = order_nums[stack_idx] + 1
-            if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
-                and new_state.stack_locs[stack_idx].col == 0):
-                new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
-        
-        
-        # reorder robots and stacks
-        new_state.orders = [order_num for _, order_num in sorted(zip(new_state.stack_locs, new_state.orders))]
-        new_state.robot_locs.sort()
-        new_state.stack_locs.sort()
-        
-        return new_state
