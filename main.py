@@ -32,25 +32,28 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 """
 
 
-def train(n_reps=10000, n_iter=20, overwrite=False):
+def train(n_reps=1000, n_iter=30, overwrite=False):
     env = Environment()
     if not overwrite:
-        env.agent.q.read_qtable()
+        env.agent.tables.read_tables()
         
     for rep in range(n_reps):
         env.state.reset()
         for time_step in range(n_iter):
-            a = env.agent.epsilon_greedy_policy(env.state, 0.9)
+            a = env.agent.min_visits_policy(env.state)
             previous_state = env.state
             env.state = env.calculate_state(env.state, a)
             env.update_cost()
             env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
-    env.agent.q.save_qtable()
+    score = evaluate(1000, 50, train=True)
+    env.agent.tables.performance_update(n_reps*n_iter + 50000, score)
+    env.agent.tables.save_tables()
+    
     return
 
-def evaluate(n_reps=100, n_iter=100, show=29, train=False):
+def evaluate(n_reps=1000, n_iter=50, show=29, train=True):
     env = Environment()
-    env.agent.q.read_qtable()
+    env.agent.tables.read_tables()
     
     for time_step in range(show):
         print('\n')
@@ -59,22 +62,36 @@ def evaluate(n_reps=100, n_iter=100, show=29, train=False):
         a = env.agent.greedy_policy(env.state)
         print("actions = " + str(a.actions))
         print('state = ' + str(env.state.enum()) + ', action = ' + str(a.enum()))
-        env.state = env.calculate_state(env.state, a)
-        env.update_cost()
+        if train:
+            previous_state = env.state
+            env.state = env.calculate_state(env.state, a)
+            env.update_cost()
+            env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
+        else:
+            env.state = env.calculate_state(env.state, a)
+            env.update_cost()
     
+    env.cost = 0
     for rep in range(n_reps):
         env.state.reset()
         for time_step in range(n_iter):
             a = env.agent.greedy_policy(env.state)
             if train:
                 previous_state = env.state
-            env.state = env.calculate_state(env.state, a)
-            env.update_cost()
-            if train:
+                env.state = env.calculate_state(env.state, a)
+                env.update_cost()
                 env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
-    env.agent.q.save_qtable()
-    print('\nscore = ' + str(env.cost/n_iter/n_reps))
-    return
+            else:
+                env.state = env.calculate_state(env.state, a)
+                env.update_cost()
+
+    if train:
+        env.agent.tables.save_tables()
+    score = env.cost/n_iter/n_reps
+    print('\nscore = ' + str(score))
+    return score
+
+
 
 def baseline(n_iter=1000, show=10):
     env = Environment()
@@ -99,11 +116,11 @@ def baseline(n_iter=1000, show=10):
     print('\nscore = ' + str(env.cost/n_iter))
     return
 
-# train(n_reps=100, n_iter=100, overwrite=True)
-
-for i in range(1000):
+# train(overwrite=True)
+for i in range(10):
     print('\n', i)
     train()
-    evaluate(train=True)
+    
+# evaluate(train=True)
     
 # baseline()

@@ -1,3 +1,7 @@
+import math
+
+from warehouse_parameters import N_COLS
+
 class Location:
     """
     Location objects represent the grid coordinates of a warehouse robot or 
@@ -7,13 +11,19 @@ class Location:
     order the Locations. The __eq__, __lt__, __le__, __gt__, __ge__, and 
     __ne__ methods define the order. The display below provides an example as 
     to how the locations are ordered.
-    
+          
+    -------------------------
+    |  1  |  2  |  3  |  4  |
+    -------------------------
+    |/////|  5  |  6  |  7  |
+    -------------------------
+          
     -------------------
     |  1  |  2  |  3  |
     -------------------
-    |  4  |  5  |  6  |
+    |/////|  4  |  5  |
     -------------------
-    |  7  |  8  |  9  |
+    |/////|  6  |  7  |
     -------------------
     
     Attributes
@@ -44,6 +54,39 @@ class Location:
         self.row = row
         self.col = col
         return
+    
+    @staticmethod
+    def idx_to_loc(idx):
+        """
+        Creates a new Location object given an index.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the cell that the robot or stack is located in.
+
+        Returns
+        -------
+        Location
+            The Location object for a given index.
+
+        """
+        if idx == -1:
+            return Location(0, -1)
+        else:
+            return Location(math.floor(idx / N_COLS), idx % N_COLS)
+    
+    def idx(self):
+        """
+        The index of a Location object.
+
+        Returns
+        -------
+        int
+            The index of a Location object.
+
+        """
+        return self.row * N_COLS + self.col
     
     def __eq__(self, other):
         """

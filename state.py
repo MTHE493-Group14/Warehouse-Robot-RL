@@ -1,5 +1,4 @@
 import random
-import math
 import copy
 
 from location import Location
@@ -24,9 +23,9 @@ class State:
     
     For example, consider if we had the following state:
         
-        robot_locs = [(0,1), (1,1), (1,0)]
-        stack_locs = [(0,1), (1,0), (0,0)]
-        orders = [1, 0, 1]
+        robot_locs = [(0,1), (1,2), (1,1)]
+        stack_locs = [(0,1), (1,1), (0,0)]
+        orders = [0, 1, 1]
         
     The robot_locs list would be reordered by switching the order of the last 
     two locations. The stack_locs list would be reordered by moving the last 
@@ -37,12 +36,15 @@ class State:
     
     Our resulting state would be as follows:
         
-        robot_locs = [(0,1), (1,0), (1,1)]
-        stack_locs = [(0,0), (0,1), (1,0)]
-        orders = [1, 1, 0]
+        robot_locs = [(0,1), (1,1), (1,2)]
+        stack_locs = [(0,0), (0,1), (1,1)]
+        orders = [1, 0, 1]
     
     Attributes
     ----------
+    valid_locs : [Location]
+        The valid locations that a robot or stack could be located in. This
+        attribute should not be changed.
     robot_locs : [Location]
         The locations of each of the robots. The locations in robot_locs are 
         always in ascending order. The length of robot_locs is equal to 
@@ -70,6 +72,7 @@ class State:
         None.
 
         """
+        self.valid_locations = list(map(Location.idx_to_loc, range(-1, N_ROWS * N_COLS)))
         self.reset()
         return
     
@@ -84,11 +87,9 @@ class State:
         None.
 
         """
-        map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
-        valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
-        self.robot_locs = random.sample(valid_locations, k=N_ROBOTS)
+        self.robot_locs = random.sample(self.valid_locations, k=N_ROBOTS)
         self.robot_locs.sort()
-        self.stack_locs = random.sample(valid_locations, k=N_STACKS)
+        self.stack_locs = random.sample(self.valid_locations, k=N_STACKS)
         self.stack_locs.sort()
         self.orders = [0]* N_STACKS
         return
@@ -111,7 +112,9 @@ class State:
         None.
 
         """
-        ### RAISE EXCEPTION
+        
+        ### NO LONGER WORKS WITH NEW WAREHOUSE SHAPE
+        
         if (N_ROWS >= 4 and N_COLS >= N_ROBOTS and N_STACKS == 2*N_ROBOTS):
             self.robot_locs = [Location(1, i) for i in range(N_ROBOTS)]
             self.robot_locs.sort()
@@ -141,13 +144,9 @@ class State:
             The enumeration of the state.
 
         """
-        map_idx_to_loc = lambda i: Location(math.floor(i / N_COLS), i % N_COLS)
-        valid_locations = list(map(map_idx_to_loc, range(N_ROWS * N_COLS)))
-                
-        
         ## enumerate the location of robots
         enum_robots = 0
-        locations = copy.deepcopy(valid_locations)
+        locations = copy.deepcopy(self.valid_locations)
         for i in range(N_ROBOTS):
             idx = locations.index(self.robot_locs[i])
             if i == N_ROBOTS - 1:
@@ -158,13 +157,13 @@ class State:
                     enum_robots += nCr(len(locations), N_ROBOTS - i - 1)
                     locations = locations[1:]
             
-        possible_stacks_orders = (nCr(N_ROWS * N_COLS, N_STACKS)
+        possible_stacks_orders = (nCr(N_ROWS * N_COLS + 1, N_STACKS)
                                   * (N_ITEMS+1)**N_STACKS)
         
         
         ## enumerate the locations of stacks
         enum_stacks = 0
-        locations = copy.deepcopy(valid_locations)
+        locations = copy.deepcopy(self.valid_locations)
         for i in range(N_STACKS):
             idx = locations.index(self.stack_locs[i])
             if i == N_STACKS - 1:
@@ -218,28 +217,39 @@ class State:
         """
         s = ""
         for i in range(N_ROWS):
-            s += "\n" + "-" * 6 * N_COLS + "---\n|"
-            for j in range(N_COLS):
-                loc = Location(i, j)
-                cell = " "
-                if loc in self.robot_locs:
-                    cell += "R "
-                else:
-                    cell += "  "
-                    
-                if loc in self.stack_locs:
-                    if self.orders[self.stack_locs.index(loc)] > 0:
-                        cell += "$"
+            s += "\n" + "-" * (6 * (N_COLS + 1) - 2) + "---\n|"
+            if i == 0:
+                for j in range(-1, N_COLS):
+                    loc = Location(i, j)
+                    if loc in self.robot_locs:
+                        s += " R "
                     else:
-                        cell += "s"
-                else:
-                    cell += " "
-                    
-                if j == 0:
-                    s += "|" + cell + " ||"
-                else:
-                    s += cell + " |"
-        s += "\n" + "-" * 6 * N_COLS + "---\n"
+                        s += "   "
+                        
+                    if loc in self.stack_locs:
+                        if self.orders[self.stack_locs.index(loc)] > 0:
+                            s += "$ |"
+                        else:
+                            s += "s |"
+                    else:
+                        s += "  |"
+            else:
+                s += '/////|'
+                for j in range(N_COLS):
+                    loc = Location(i, j)
+                    if loc in self.robot_locs:
+                        s += " R "
+                    else:
+                        s += "   "
+                        
+                    if loc in self.stack_locs:
+                        if self.orders[self.stack_locs.index(loc)] > 0:
+                            s += "$ |"
+                        else:
+                            s += "s |"
+                    else:
+                        s += "  |"
+        s += "\n" + "-" * (6 * (N_COLS + 1) - 2) + "---\n"
         return s
     
     
