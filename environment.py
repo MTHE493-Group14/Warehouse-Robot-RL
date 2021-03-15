@@ -93,15 +93,24 @@ class Environment():
                 new_state.robot_locs[robot_idx] = Location(max(row-1, 0), col)
                 new_state.stack_locs[stack_num] = Location(max(row-1, 0), col)
             elif a.actions[robot_idx] == "D":
-                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
+                if col > -1:
+                    new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
             elif a.actions[robot_idx] == "SD" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
-                new_state.stack_locs[stack_num] = Location(min(row+1, N_ROWS-1), col)
+                if col > -1:
+                    new_state.robot_locs[robot_idx] = Location(min(row+1, N_ROWS-1), col)
+                    new_state.stack_locs[stack_num] = Location(min(row+1, N_ROWS-1), col)
             elif a.actions[robot_idx] == "L":
-                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
+                if row == 0:
+                    new_state.robot_locs[robot_idx] = Location(row, max(col-1, -1))
+                else:
+                    new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
             elif a.actions[robot_idx] == "SL" and stack_num != -1:
-                new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
-                new_state.stack_locs[stack_num] = Location(row, max(col-1, 0))
+                if row == 0:
+                    new_state.robot_locs[robot_idx] = Location(row, max(col-1, -1))
+                    new_state.stack_locs[stack_num] = Location(row, max(col-1, -1))
+                else:
+                    new_state.robot_locs[robot_idx] = Location(row, max(col-1, 0))
+                    new_state.stack_locs[stack_num] = Location(row, max(col-1, 0))
             elif a.actions[robot_idx] == "R":
                 new_state.robot_locs[robot_idx] = Location(row, min(col+1, N_COLS-1))
             elif a.actions[robot_idx] == "SR" and stack_num != -1:
@@ -135,10 +144,9 @@ class Environment():
         order_nums = copy.deepcopy(new_state.orders)
         for stack_idx in range(N_STACKS):
             if random.random() < ORDER_PROB:
-                if order_nums[stack_idx] < N_ITEMS:
-                    new_state.orders[stack_idx] = order_nums[stack_idx] + 1
+                new_state.orders[stack_idx] = min(order_nums[stack_idx] + 1, N_ITEMS)
             if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
-                and new_state.stack_locs[stack_idx].col == 0):
+                and new_state.stack_locs[stack_idx].col == -1):
                 new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
         
         
