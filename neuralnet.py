@@ -50,11 +50,11 @@ class customModel():
     def create_model(self):
         model = Sequential()
 
-        model.add(Dense(8)) # Each robot/stack needs 2 input nodes for position and stacks need a third for num items
+        model.add(Dense(8))  # Each robot/stack needs 2 input nodes for position and stacks need a third for num items
         model.add(Activation('relu'))
         model.add(Dense(64))
         model.add(Activation('relu'))
-        model.add(Dense(9, activation='linear')) # 9 output actions
+        model.add(Dense(9, activation='linear'))  # 9 output actions
 
         model.compile(loss='mse', optimizer=Adam(lr=0.001), metrics=['accuracy'])
         return model
@@ -94,15 +94,11 @@ class customModel():
         y = []
 
         # Now we need to enumerate our batches
-        for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
-
+        for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch): # Need to figure out what to do without terminal states
             # If not a terminal state, get new q from future states, otherwise set it to 0
             # almost like with Q Learning, but we use just part of equation here
-            if not done:
-                max_future_q = np.max(future_qs_list[index])
-                new_q = reward + DISCOUNT_FACTOR * max_future_q
-            else:
-                new_q = reward
+            max_future_q = np.max(future_qs_list[index])
+            new_q = reward + DISCOUNT_FACTOR * max_future_q
 
             # Update Q value for given state
             current_qs = current_qs_list[index]
