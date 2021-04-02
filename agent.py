@@ -193,6 +193,8 @@ class Agent:
             following the baseline policy.
 
         """
+        """ writing pseudocode for baseline policy- Daniel
+        """
         ## RAISE EXCEPTION
         a = Actions()
         all_middle_rows = all([loc.row in {1, 2} for loc in current_state.robot_locs])
