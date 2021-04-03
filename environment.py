@@ -4,7 +4,8 @@ import random
 from location import Location
 from state import State
 from agent import Agent
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, ORDER_PROB
+from agent_lfa import AgentLFA
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, ORDER_PROB, DISCOUNT
 
 class Environment():
     """
@@ -19,19 +20,38 @@ class Environment():
         The agent that is interacting with the environment.
     cost : int
         The total accumulated cost throughout the simulation.
+    filename : str
+        The name used for saving/reading files.
     """
     
-    def __init__(self):
+    def __init__(self, method, overwrite):
         """
         Initialize the environment by initializing the state, agent, and cost.
+        
+        Parameters
+        ----------
+        method: str
+            The method of reinforcement learning (i.e. tabular or function approximation).
+        overwrite : bool
+            Whether or not the csvs should be overwritten by ones.
 
         Returns
         -------
         None.
 
         """
+        self.filename = (str(N_ROWS) + 'x' 
+                         + str(N_COLS) + '_' 
+                         + str(N_ROBOTS) + 'R_' 
+                         + str(N_STACKS) + 'S_'
+                         + str(N_ITEMS) + 'I_'
+                         + str(ORDER_PROB) + 'O_'
+                         + str(DISCOUNT) + 'D')
+        if method == 'tabular':
+            self.agent = Agent(self.filename, overwrite)
+        elif method == 'fa':
+            self.agent = AgentLFA(self.filename, overwrite)
         self.state = State()
-        self.agent = Agent()
         self.cost = 0
         return
     
@@ -128,9 +148,7 @@ class Environment():
 
         # check if robots passed through one another
         for i in range(N_ROBOTS):
-            if not possible:
-                break
-            else:
+            if possible:
                 for j in range(N_ROBOTS):
                     if (robot_locs[i] == new_state.robot_locs[j] 
                         and new_state.robot_locs[i] == robot_locs[j] 
@@ -139,6 +157,8 @@ class Environment():
                             new_state.robot_locs = copy.deepcopy(current_state.robot_locs)
                             new_state.stack_locs = copy.deepcopy(current_state.stack_locs)
                             break
+            else:
+                break
         
         # check for new orders and determine if items were returned
         order_nums = copy.deepcopy(new_state.orders)
