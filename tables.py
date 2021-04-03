@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from actions import Actions
 from util import nCr
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, LEARNING_RATE, DISCOUNT_FACTOR
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, N_ACTIONS, DISCOUNT
 
 class Tables:
     """
@@ -33,12 +32,9 @@ class Tables:
         changes after taking an action in a state or that the action has not
         been tried in that state yet. The array has 1 row for each state and 1 
         column for each action.
-    performance : Pandas DataFrame
-        A dataframe indicating the performance of the greedy policy after 
-        training for some number of iterations.
     """
     
-    def __init__(self):
+    def __init__(self, filename, overwrite):
         """
         Initializes the tables.
         
@@ -55,22 +51,39 @@ class Tables:
         
         Many times these tables are overwritten by csvs that have been saved
         after many iterations of training.
-    
+
+        Parameters
+        ----------
+        filename : str
+            The filename that should be used to read in csvs.
+        overwrite : bool
+            Whether the tables should be overwritten by new ones.
+
         Returns
         -------
         None.
 
         """
-        num_states = (nCr(N_ROWS*N_COLS+1, N_ROBOTS) 
-                      * nCr(N_ROWS*N_COLS+1, N_STACKS)    
-                      * (N_ITEMS+1)**N_STACKS)
-        num_actions = len(Actions().valid_actions)**N_ROBOTS
+        if overwrite:
+            num_states = (nCr(N_ROWS*N_COLS+1, N_ROBOTS) 
+                          * nCr(N_ROWS*N_COLS+1, N_STACKS)    
+                          * (N_ITEMS+1)**N_STACKS)
+            num_actions = N_ACTIONS**N_ROBOTS
+            
+            self.qvals = np.ones((num_states, num_actions)) * (N_ROWS + N_COLS - 1) * N_STACKS
+            self.visits = np.zeros((num_states, num_actions))
+            self.same_locs = np.concatenate((np.ones((num_states, 1)), 
+                                             np.zeros((num_states, num_actions-1))), 
+                                            axis=1)
+            self.save(filename)
+        else:
+            qvals = pd.read_csv('Q-Tables/qtable_' + filename + '.csv')
+            visits = pd.read_csv('Visits/visits_' + filename + '.csv')
+            same_locs = pd.read_csv('SameLocs/samelocs_' + filename + '.csv')
         
-        self.qvals = np.ones((num_states, num_actions)) * (N_ROWS + N_COLS - 1) * N_STACKS
-        self.visits = np.zeros((num_states, num_actions))
-        self.same_locs = np.concatenate((np.ones((1, num_states)), 
-                                         np.zeros((num_actions-1, num_states)))).transpose()
-        self.performance = pd.DataFrame([], columns=['iters', 'score'])
+            self.qvals = np.asarray(qvals)
+            self.visits = np.asarray(visits)
+            self.same_locs = np.asarray(same_locs)
         return
     
     def update(self, s1, s2, a, c):
@@ -113,7 +126,8 @@ class Tables:
             self.same_locs[s1num][anum] = 0
             old_val = self.qvals[s1num][anum]
             min_val = min(self.qvals[s2num])
-            self.qvals[s1num][anum] += LEARNING_RATE*(c + DISCOUNT_FACTOR*(min_val) - old_val)
+            alpha = 1 / (self.visits[s1num][anum] + 1)
+            self.qvals[s1num][anum] += alpha*(c + DISCOUNT*(min_val) - old_val)
             self.visits[s1num][anum] += 1
         else:
             # vectorize updates using numpy arrays
@@ -121,68 +135,38 @@ class Tables:
             anums = np.argwhere(self.same_locs[s1num] == 1).flatten()
             old_vals = self.qvals[s1num][anums]
             min_val = min(self.qvals[s2num])
-            self.qvals[s1num][anums] += LEARNING_RATE*(c + DISCOUNT_FACTOR*(min_val) - old_vals)
+            alpha = 1 / (self.visits[s1num][anums] + 1)
+            self.qvals[s1num][anums] += alpha*(c + DISCOUNT*(min_val) - old_vals)
             self.visits[s1num][anums] += 1
-
         return
-    
-    def read_tables(self):
-        """
-        Overwrite the tables with csvs that contain more accurate q-value 
-        estimates.
-        
-        Read the csvs into Pandas DataFrames and convert these to NumPy Arrays.
 
-        Returns
-        -------
-        None.
-
-        """
-        name = (str(N_ROWS) + 'x' + str(N_COLS) + 'grid_' 
-                + str(N_ROBOTS) + 'robots_' + str(N_STACKS) + 'stacks_'
-                + str(N_ITEMS) + 'items')
-        
-        qvals = pd.read_csv('Q-Tables/qtable_' + name + '.csv')
-        visits = pd.read_csv('Visits/visits_' + name + '.csv')
-        same_locs = pd.read_csv('SameLocs/samelocs_' + name + '.csv')
-        self.performance = pd.read_csv('Performance/performance_' + name + '.csv')
-        
-        self.qvals = np.asarray(qvals)
-        self.visits = np.asarray(visits)
-        self.same_locs = np.asarray(same_locs)
-        return
+    def greedy_actions(self):
+        return np.argmin(self.qvals, axis=1)
     
-    def save_tables(self):
+    def save(self, filename):
         """
         Save the tables to use again later on.
         
         Convert the NumPy Arrays to Pandas DataFrames and save these as csvs.
 
+        Parameters
+        ----------
+        filename : str
+            The filename that should be used to save the tables as csvs.
+        
         Returns
         -------
         None.
 
         """
-        name = (str(N_ROWS) + 'x' + str(N_COLS) + 'grid_' 
-                + str(N_ROBOTS) + 'robots_' + str(N_STACKS) + 'stacks_'
-                + str(N_ITEMS) + 'items')
         
         qvals = pd.DataFrame(self.qvals)
         visits = pd.DataFrame(self.visits)
         same_locs = pd.DataFrame(self.same_locs)
         
-        qvals.to_csv('Q-Tables/qtable_' + name + '.csv', index=False)
-        visits.to_csv('Visits/visits_' + name + '.csv', index=False)
-        same_locs.to_csv('SameLocs/samelocs_' + name + '.csv', index=False)
-        self.performance.to_csv('Performance/performance_' + name + '.csv', index=False)
-        return
-    
-    def performance_update(self, iters, score):
-        if len(self.performance) == 0:
-            old_iters = 0
-        else:
-            old_iters = self.performance.iloc[-1, :]['iters']
-        self.performance = self.performance.append({'iters': iters + old_iters,'score': score}, ignore_index=True)
+        qvals.to_csv('Q-Tables/qtable_' + filename + '.csv', index=False)
+        visits.to_csv('Visits/visits_' + filename + '.csv', index=False)
+        same_locs.to_csv('SameLocs/samelocs_' + filename + '.csv', index=False)
         return
         
     
