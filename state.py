@@ -73,7 +73,7 @@ class State:
         None.
 
         """
-        self.valid_locations = list(map(Location.idx_to_loc, range(-1, N_ROWS * N_COLS)))
+        self.valid_locs = list(map(Location.idx_to_loc, range(-1, N_ROWS * N_COLS)))
         self.reset()
         return
     
@@ -88,9 +88,9 @@ class State:
         None.
 
         """
-        self.robot_locs = random.sample(self.valid_locations, k=N_ROBOTS)
+        self.robot_locs = random.sample(self.valid_locs, k=N_ROBOTS)
         self.robot_locs.sort()
-        self.stack_locs = random.sample(self.valid_locations, k=N_STACKS)
+        self.stack_locs = random.sample(self.valid_locs, k=N_STACKS)
         self.stack_locs.sort()
         self.orders = [0]* N_STACKS
         return
@@ -145,9 +145,9 @@ class State:
             The enumeration of the state.
 
         """
-        ## enumerate the location of robots
+        # enumerate the location of robots
         enum_robots = 0
-        locations = copy.deepcopy(self.valid_locations)
+        locations = copy.deepcopy(self.valid_locs)
         for i in range(N_ROBOTS):
             idx = locations.index(self.robot_locs[i])
             if i == N_ROBOTS - 1:
@@ -162,9 +162,9 @@ class State:
                                   * (N_ITEMS+1)**N_STACKS)
         
         
-        ## enumerate the locations of stacks
+        # enumerate the locations of stacks
         enum_stacks = 0
-        locations = copy.deepcopy(self.valid_locations)
+        locations = copy.deepcopy(self.valid_locs)
         for i in range(N_STACKS):
             idx = locations.index(self.stack_locs[i])
             if i == N_STACKS - 1:
@@ -177,7 +177,7 @@ class State:
             
         possible_orders = (N_ITEMS+1)**N_STACKS
             
-        ## enumerate the order state variable
+        # enumerate the order state variable
         enum_orders = 0
         for i in range(N_STACKS):
             enum_orders += self.orders[i] * (N_ITEMS+1)**(N_STACKS-1-i)
@@ -193,7 +193,7 @@ class State:
 
         Returns
         -------
-        a : [int]
+        f : [int]
             The list of feature values.
 
         """
@@ -240,6 +240,14 @@ class State:
         return f
 
     def features2(self):
+        """
+        Return the features values for a state.
+
+        Returns
+        -------
+        f : [int]
+            The list of feature values.
+        """
         rows = [loc.row for loc in self.robot_locs] + [loc.row for loc in self.stack_locs]
         cols = [loc.col for loc in self.robot_locs] + [loc.col for loc in self.stack_locs]
 
