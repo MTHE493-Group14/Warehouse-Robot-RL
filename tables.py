@@ -140,7 +140,7 @@ class Tables:
             self.visits[s1num][anums] += 1
         return
 
-    def greedy_actions(self):
+    def get_greedy_actions(self):
         return np.argmin(self.qvals, axis=1)
     
     def save(self, filename):
