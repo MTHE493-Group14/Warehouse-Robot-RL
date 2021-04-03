@@ -36,7 +36,7 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 
 def train(method, train_reps=1000, train_iters=1000, eval_reps=100, eval_iters=100, overwrite=False):
     env = Environment(method, overwrite)
-    greedy_actions = env.agent.tables.greedy_actions()
+    greedy_actions = env.agent.tables.get_greedy_actions()
     if overwrite:
         avg_cost, max_avg_cost, min_avg_cost = evaluate(method, eval_reps, eval_iters)
         env.agent.performance.update(0, avg_cost, max_avg_cost, min_avg_cost)
@@ -63,7 +63,7 @@ def train(method, train_reps=1000, train_iters=1000, eval_reps=100, eval_iters=1
     env.agent.performance.update(train_reps*train_iters, avg_cost, max_avg_cost, min_avg_cost)
     env.agent.performance.save(method, env.filename)
     # env.agent.performance.plot()
-    return np.all(greedy_actions == env.agent.tables.greedy_actions())
+    return np.all(greedy_actions == env.agent.tables.get_greedy_actions())
 
 
 
