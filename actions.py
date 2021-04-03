@@ -1,13 +1,15 @@
 import random
+import numpy as np
+import pandas as pd
 
-from warehouse_parameters import N_ROBOTS
+from warehouse_parameters import N_ROBOTS, N_ACTIONS
 
 class Actions:
     """
     The actions that the robots will take, chosen by the central agent.
     
     At any time step, each robot may perform one of the following 9 actions:
-        O : Do nothing.
+        N : Do nothing.
         U : Move up.
         D : Move down.
         L : Move left.
@@ -40,7 +42,7 @@ class Actions:
         None.
 
         """
-        self.valid_actions = ['O', 'U', 'D', 'L', 'R', 'SU', 'SD', 'SL', 'SR']
+        self.valid_actions = ['N', 'U', 'D', 'L', 'R', 'SU', 'SD', 'SL', 'SR']
         self.actions = random.choices(self.valid_actions, k=N_ROBOTS)
         return
     
@@ -119,7 +121,7 @@ class Actions:
         """
         enum = 0
         for i in range(N_ROBOTS):
-            coeff = len(self.valid_actions)**(N_ROBOTS - 1 - i)
+            coeff = N_ACTIONS**(N_ROBOTS - 1 - i)
             enum += self.valid_actions.index(self.actions[i]) * coeff
         return enum
     
@@ -138,14 +140,38 @@ class Actions:
             Boolean value indicating if the action was successfully set.
 
         """
-        num_actions = len(self.valid_actions)
-        if num in range(num_actions ** N_ROBOTS):
+        if num in range(N_ACTIONS ** N_ROBOTS):
             for i in range(N_ROBOTS):
-                action_idx = int(num / num_actions**(N_ROBOTS - 1 - i)) % num_actions
+                action_idx = int(num / N_ACTIONS**(N_ROBOTS - 1 - i)) % N_ACTIONS
                 self.set_action(i, self.valid_actions[action_idx])
             return True
         else:
             return False
+        
+    def features(self):
+        """
+        Return the features values for actions.
+
+        Returns
+        -------
+        [int]
+            A list of feature values.
+
+        """
+        a = pd.Series(self.actions).str
+        f = np.concatenate((a.count('N'),
+                            a.count('U'), 
+                            a.count('D'), 
+                            a.count('L'), 
+                            a.count('R'), 
+                            a.count('S')), axis=None)
+        return f
+
+    def features2(self):
+        anums = [self.valid_actions.index(a) for a in self.actions]
+        f = np.zeros((N_ROBOTS, N_ACTIONS), dtype=int)
+        f[np.arange(N_ROBOTS), anums] = 1
+        return f.flatten()
     
     def __repr__(self):
         """
