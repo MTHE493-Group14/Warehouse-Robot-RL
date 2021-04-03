@@ -1,5 +1,6 @@
 import random
 import copy
+import numpy as np
 
 from location import Location
 from util import nCr
@@ -153,7 +154,7 @@ class State:
                 enum_robots += idx
             else:
                 locations = locations[1:]
-                for j in range(idx):
+                for _ in range(idx):
                     enum_robots += nCr(len(locations), N_ROBOTS - i - 1)
                     locations = locations[1:]
             
@@ -170,7 +171,7 @@ class State:
                 enum_stacks += idx
             else:
                 locations = locations[1:]
-                for j in range(idx):
+                for _ in range(idx):
                     enum_stacks += nCr(len(locations), N_STACKS - i - 1)
                     locations = locations[1:]
             
@@ -186,24 +187,88 @@ class State:
                + enum_orders)
         return enum
     
-    def set_by_enum(self, num):
-        # possible_stacks_orders = (nCr(N_ROWS * N_COLS, N_STACKS)
-        #                           * (ITEMS_PER_STACK+1)**N_STACKS)
+    def features(self):
+        """
+        Return the features values for a state.
+
+        Returns
+        -------
+        a : [int]
+            The list of feature values.
+
+        """
+        # a1 = [Location(0, -1), Location(0, 0), Location(0, 1), Location(1, 0)]
+        # a2 = [Location(0, 1), Location(0, 2), Location(1, 0), Location(1, 1)]
+        # a3 =  [Location(0, 2), Location(0, 3), Location(1, 1), Location(1, 2), Location(1, 3)]
+
+        a1 = [Location(0, -1), Location(0, 0)]
+        a2 = [Location(0, 0), Location(0, 1), Location(1, 0)]
+        a3 =  [Location(0, 1), Location(0, 2), Location(1, 0), Location(1, 1)]
+        a4 =  [Location(0, 2), Location(0, 3), Location(1, 1), Location(1, 2)]
+        a5 =  [Location(0, 3), Location(1, 2), Location(1, 3)]
+        a6 =  [Location(1, 3)]
+        n_areas = 6
+
+        nr = np.sum((np.isin(self.robot_locs, a1), 
+                     np.isin(self.robot_locs, a2), 
+                     np.isin(self.robot_locs, a3), 
+                     np.isin(self.robot_locs, a4), 
+                     np.isin(self.robot_locs, a5), 
+                     np.isin(self.robot_locs, a6)), axis=1)
+        fr = np.zeros((n_areas, N_ROBOTS+1), dtype=int)
+        fr[np.arange(n_areas), nr] = 1
+
+        ns = np.sum((np.isin(self.stack_locs, a1), 
+                     np.isin(self.stack_locs, a2), 
+                     np.isin(self.stack_locs, a3), 
+                     np.isin(self.stack_locs, a4), 
+                     np.isin(self.stack_locs, a5), 
+                     np.isin(self.stack_locs, a6)), axis=1)
+        fs = np.zeros((n_areas, N_STACKS+1), dtype=int)
+        fs[np.arange(n_areas), ns] = 1
+
+        no = np.sum((np.isin(self.stack_locs, a1), 
+                     np.isin(self.stack_locs, a2), 
+                     np.isin(self.stack_locs, a3), 
+                     np.isin(self.stack_locs, a4), 
+                     np.isin(self.stack_locs, a5), 
+                     np.isin(self.stack_locs, a6)) * np.asarray(self.orders), axis=1)
+        fo = np.zeros((n_areas, N_STACKS+1), dtype=int)
+        fo[np.arange(n_areas), no] = 1
+
+        f = np.multiply(np.multiply(fr[:, np.newaxis].reshape(n_areas, -1, 1), fs[:, np.newaxis]).reshape(n_areas, -1, 1), fo[:, np.newaxis]).flatten()
+        return f
+
+    def features2(self):
+        rows = [loc.row for loc in self.robot_locs] + [loc.row for loc in self.stack_locs]
+        cols = [loc.col for loc in self.robot_locs] + [loc.col for loc in self.stack_locs]
+
+        fr = np.zeros((N_ROBOTS + N_STACKS, N_ROWS), dtype=int)
+        fr[np.arange(N_ROBOTS + N_STACKS), rows] = 1
+
+        fs = np.zeros((N_ROBOTS + N_STACKS, N_COLS + 1), dtype=int)
+        fs[np.arange(N_ROBOTS + N_STACKS), cols] = 1
+
+        f = np.concatenate((fr.flatten(), fs.flatten(), self.orders), axis=None)
+        return f
+    
+    def value_estimate(self):
+        """
+        Return a q-value estimate.
         
-        # possible_orders = (ITEMS_PER_STACK+1)**N_STACKS
-        
-        # enum_robots = int(num / possible_stacks_orders)
-        
-        # cnt = 0
-        # robot_locs = list(range(N_ROBOTS))
-        # for i in range(N_ROBOTS):
-            
-        
-        # enum_stacks = int(num / possible_orders) % possible_stacks_orders
-        
-        # enum_orders = num % possible_orders
-        
-        return 
+        Used for initializing q-tables and function approximator weights.
+
+        Returns
+        -------
+        q : float
+            The estimated q-value for that state.
+
+        """
+        q = 0
+        for s in self.stack_locs:
+            q += s.row + s.col + 1
+        q *= N_STACKS / N_ROBOTS
+        return q
     
     def grid(self):
         """
