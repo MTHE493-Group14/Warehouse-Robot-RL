@@ -93,7 +93,7 @@ def evaluate(n_reps=1000, n_iter=50, show=29, train=True):
 
 
 
-def baseline(n_iter=1000, show=10):
+def baseline(n_iter=100, show=10):
     env = Environment()
     if not env.state.baseline_organization():
         return

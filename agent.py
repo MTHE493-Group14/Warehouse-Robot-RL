@@ -116,7 +116,7 @@ class Agent:
         baseline_policy.
         
         In order to evaluate the policy learned by the reinforcement learning
-        algorithm, we must compare the performance to the performance of 
+        algorithm, we must compare its performance to the performance of 
         another policy. This baseline policy keeps all the stacks and robots 
         in the 2 middle rows until a stack needs to be returned to a picking 
         station.
