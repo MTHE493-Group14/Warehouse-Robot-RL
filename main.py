@@ -5,7 +5,7 @@ import numpy as np
 
 """
 Created by Adam Farley, Daniel Molyneaux, Ian Ho, and Sang Park for MTHE 493.
-Last updated: January 2021
+Last updated: April 2021
 
 This script will simulate the movements of Amazon warehouse robots as they
 move items around an Amazon warehouse. 
@@ -36,34 +36,35 @@ states (e.g. if a robot is in the top row of the grid, they may not move up).
 
 def train(method, train_reps=1000, train_iters=1000, eval_reps=100, eval_iters=100, overwrite=False):
     env = Environment(method, overwrite)
-    greedy_actions = env.agent.tables.get_greedy_actions()
+    qvals = env.agent.tables.qvals + 0
     if overwrite:
         avg_cost, max_avg_cost, min_avg_cost = evaluate(method, eval_reps, eval_iters)
-        env.agent.performance.update(0, avg_cost, max_avg_cost, min_avg_cost)
+        env.agent.performance.update(0, np.nan, avg_cost, max_avg_cost, min_avg_cost)
         
     for _ in range(train_reps):
         env.state.reset()
         for _ in range(train_iters):
             a = env.agent.epsilon_random_greedy_policy(env.state, 0.95)
-            # a = env.agent.epsilon_random_greedy_policy(env.state, 0.95)
             previous_state = env.state
             env.state = env.calculate_state(env.state, a)
             env.update_cost()
             if method == 'tabular':
-                env.agent.tables.update(previous_state, env.state, a, sum(env.state.orders))
+                env.agent.tables.update(previous_state, env.state, a, sum(env.state.order_times))
             else:
-                env.agent.lfa.update(previous_state, env.state, a, sum(env.state.orders))
+                env.agent.lfa.update(previous_state, env.state, a, sum(env.state.order_times))
 
     if method == 'tabular':
         env.agent.tables.save(env.filename)
+        print()
     else:
         env.agent.lfa.save(env.filename)
 
     avg_cost, max_avg_cost, min_avg_cost = evaluate(method, eval_reps, eval_iters)
-    env.agent.performance.update(train_reps*train_iters, avg_cost, max_avg_cost, min_avg_cost)
+    qval_rmse = np.sqrt(np.sum(np.square(qvals - env.agent.tables.qvals)) / qvals.size)
+    print('\nqval_rmse = ' + str(qval_rmse))
+    env.agent.performance.update(train_reps*train_iters, qval_rmse, avg_cost, max_avg_cost, min_avg_cost)
     env.agent.performance.save(method, env.filename)
-    # env.agent.performance.plot()
-    return np.all(greedy_actions == env.agent.tables.get_greedy_actions())
+    return
 
 
 
@@ -133,14 +134,7 @@ def evaluate(method, n_reps=100, n_iter=100, show=100):
 #     return
 
 
-# train('fa', train_reps=1000, train_iters=100, eval_reps=100, eval_iters=100, overwrite=True)
+# train('tabular', train_reps=1000, train_iters=100, eval_reps=100, eval_iters=100, overwrite=True)
 for i in range(1000):
     print('\n', i)
-    converged = train('tabular', train_reps=1000, train_iters=100, eval_reps=100, eval_iters=100, overwrite=False)
-    if converged:
-        print("LFGGG\n\n\n")
-        break
-
-# evaluate(train=True)
-    
-# baseline()
+    train('tabular', train_reps=1000, train_iters=100, eval_reps=100, eval_iters=100, overwrite=False)

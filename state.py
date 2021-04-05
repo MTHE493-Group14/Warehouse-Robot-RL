@@ -4,7 +4,7 @@ import numpy as np
 
 from location import Location
 from util import nCr
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_PRIORITIES
 
 class State:
     """
@@ -54,10 +54,14 @@ class State:
         The locations of each of the stacks. The locations in stack_locs are
         always in ascending order. The length of stack_locs is equal to 
         N_STACKS.
-    orders : [int]
-        The number of ordered items that each stack contains. Each value in 
-        orders cannot be any larger than N_ITEMS. The length of orders 
-        is equal to N_STACKS.
+    order_times : [int]
+        The number of time steps since each stack was ordered. If a stack 
+        has not been ordered since the last time it was returned, this
+        number is 0. The length of order_times is equal to N_STACKS.
+    priorities : [int]
+        The priority number for each stack contains. Each value in priorities 
+        cannot be any larger than N_PRIORITIES. The length of priorities is 
+        equal to N_STACKS.
     
     """
     
@@ -92,7 +96,8 @@ class State:
         self.robot_locs.sort()
         self.stack_locs = random.sample(self.valid_locs, k=N_STACKS)
         self.stack_locs.sort()
-        self.orders = [0]* N_STACKS
+        self.order_times = [0]* N_STACKS
+        self.priorities = [0]* N_STACKS
         return
     
     
@@ -158,8 +163,8 @@ class State:
                     enum_robots += nCr(len(locations), N_ROBOTS - i - 1)
                     locations = locations[1:]
             
-        possible_stacks_orders = (nCr(N_ROWS * N_COLS + 1, N_STACKS)
-                                  * (N_ITEMS+1)**N_STACKS)
+        possible_stacks_priorities = (nCr(N_ROWS * N_COLS + 1, N_STACKS)
+                                      * (N_PRIORITIES+1)**N_STACKS)
         
         
         # enumerate the locations of stacks
@@ -175,16 +180,16 @@ class State:
                     enum_stacks += nCr(len(locations), N_STACKS - i - 1)
                     locations = locations[1:]
             
-        possible_orders = (N_ITEMS+1)**N_STACKS
+        possible_priorities = (N_PRIORITIES+1)**N_STACKS
             
         # enumerate the order state variable
-        enum_orders = 0
+        enum_priorities = 0
         for i in range(N_STACKS):
-            enum_orders += self.orders[i] * (N_ITEMS+1)**(N_STACKS-1-i)
+            enum_priorities += self.priorities[i] * (N_PRIORITIES+1)**(N_STACKS-1-i)
             
-        enum = (enum_robots * possible_stacks_orders
-               + enum_stacks * possible_orders
-               + enum_orders)
+        enum = (enum_robots * possible_stacks_priorities
+               + enum_stacks * possible_priorities
+               + enum_priorities)
         return enum
     
     def features(self):
@@ -232,7 +237,7 @@ class State:
                      np.isin(self.stack_locs, a3), 
                      np.isin(self.stack_locs, a4), 
                      np.isin(self.stack_locs, a5), 
-                     np.isin(self.stack_locs, a6)) * np.asarray(self.orders), axis=1)
+                     np.isin(self.stack_locs, a6)) * np.asarray(self.order_times), axis=1)
         fo = np.zeros((n_areas, N_STACKS+1), dtype=int)
         fo[np.arange(n_areas), no] = 1
 
@@ -257,7 +262,7 @@ class State:
         fs = np.zeros((N_ROBOTS + N_STACKS, N_COLS + 1), dtype=int)
         fs[np.arange(N_ROBOTS + N_STACKS), cols] = 1
 
-        f = np.concatenate((fr.flatten(), fs.flatten(), self.orders), axis=None)
+        f = np.concatenate((fr.flatten(), fs.flatten(), self.order_times), axis=None)
         return f
     
     def value_estimate(self):
@@ -300,10 +305,13 @@ class State:
                         s += "   "
                         
                     if loc in self.stack_locs:
-                        if self.orders[self.stack_locs.index(loc)] > 0:
+                        priority = self.priorities[self.stack_locs.index(loc)]
+                        if priority == 0:
+                            s += "s |"
+                        elif priority == 1:
                             s += "$ |"
                         else:
-                            s += "s |"
+                            s += "$$|"
                     else:
                         s += "  |"
             else:
@@ -316,10 +324,13 @@ class State:
                         s += "   "
                         
                     if loc in self.stack_locs:
-                        if self.orders[self.stack_locs.index(loc)] > 0:
+                        priority = self.priorities[self.stack_locs.index(loc)]
+                        if priority == 0:
+                            s += "s |"
+                        elif priority == 1:
                             s += "$ |"
                         else:
-                            s += "s |"
+                            s += "$$|"
                     else:
                         s += "  |"
         s += "\n" + "-" * (6 * (N_COLS + 1) - 2) + "---\n"
@@ -339,5 +350,6 @@ class State:
         s = self.grid()
         s += "robots = " + str(self.robot_locs) + '\n'
         s += "stacks = " + str(self.stack_locs) + '\n'
-        s += "orders = " + str(self.orders) + '\n'
+        s += "order times = " + str(self.order_times) + '\n'
+        s += "priorities = " + str(self.priorities) + '\n'
         return s

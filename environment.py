@@ -5,7 +5,7 @@ from location import Location
 from state import State
 from agent import Agent
 from agent_lfa import AgentLFA
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, ORDER_PROB, DISCOUNT
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_PRIORITIES, ORDER_PROB, DISCOUNT
 
 class Environment():
     """
@@ -44,7 +44,7 @@ class Environment():
                          + str(N_COLS) + '_' 
                          + str(N_ROBOTS) + 'R_' 
                          + str(N_STACKS) + 'S_'
-                         + str(N_ITEMS) + 'I_'
+                         + str(N_PRIORITIES) + 'P_'
                          + str(ORDER_PROB) + 'O_'
                          + str(DISCOUNT) + 'D')
         if method == 'tabular':
@@ -161,17 +161,25 @@ class Environment():
                 break
         
         # check for new orders and determine if items were returned
-        order_nums = copy.deepcopy(new_state.orders)
+        order_times = copy.deepcopy(new_state.order_times)
         for stack_idx in range(N_STACKS):
-            if random.random() < ORDER_PROB:
-                new_state.orders[stack_idx] = min(order_nums[stack_idx] + 1, N_ITEMS)
+            if order_times[stack_idx] == 0:
+                if random.random() < ORDER_PROB:
+                    new_state.order_times[stack_idx] = 1
+                    new_state.priorities[stack_idx] = 1
+            else:
+                new_state.order_times[stack_idx] = order_times[stack_idx] + 1
+                if order_times[stack_idx] == 9:
+                    new_state.priorities[stack_idx] = 2
             if (current_state.stack_locs[stack_idx] == new_state.stack_locs[stack_idx] 
                 and new_state.stack_locs[stack_idx].col == -1):
-                new_state.orders[stack_idx] = max(order_nums[stack_idx] - 1, 0)
+                new_state.order_times[stack_idx] = 0
+                new_state.priorities[stack_idx] = 0
         
         
         # reorder robots and stacks
-        new_state.orders = [order_num for _, order_num in sorted(zip(new_state.stack_locs, new_state.orders))]
+        new_state.order_times = [order_time for _, order_time in sorted(zip(new_state.stack_locs, new_state.order_times))]
+        new_state.priorities = [priority for _, priority in sorted(zip(new_state.stack_locs, new_state.priorities))]
         new_state.robot_locs.sort()
         new_state.stack_locs.sort()
             
@@ -190,7 +198,7 @@ class Environment():
         None.
 
         """
-        self.cost += sum(self.state.orders)
+        self.cost += sum(self.state.order_times)
         return
     
         

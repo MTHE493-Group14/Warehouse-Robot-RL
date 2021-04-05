@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from util import nCr
-from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_ITEMS, N_ACTIONS, DISCOUNT
+from warehouse_parameters import N_ROWS, N_COLS, N_ROBOTS, N_STACKS, N_PRIORITIES, N_ACTIONS, DISCOUNT
 
 class Tables:
     """
@@ -64,10 +64,11 @@ class Tables:
         None.
 
         """
+        
         if overwrite:
-            num_states = (nCr(N_ROWS*N_COLS+1, N_ROBOTS) 
-                          * nCr(N_ROWS*N_COLS+1, N_STACKS)    
-                          * (N_ITEMS+1)**N_STACKS)
+            num_states = ( nCr(N_ROWS*N_COLS+1, N_ROBOTS) 
+                            * nCr(N_ROWS*N_COLS+1, N_STACKS)    
+                            * (N_PRIORITIES+1)**N_STACKS)
             num_actions = N_ACTIONS**N_ROBOTS
             
             self.qvals = np.ones((num_states, num_actions)) * (N_ROWS + N_COLS - 1) * N_STACKS
